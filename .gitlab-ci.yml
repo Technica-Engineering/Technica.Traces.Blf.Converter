@@ -1,3 +1,7 @@
+
+variables:
+  GIT_SUBMODULE_STRATEGY: recursive
+
 .test:
   before_script:
     - mkdir build
