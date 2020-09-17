@@ -1,0 +1,19 @@
+.test:
+  before_script:
+    - mkdir build
+    - cd build
+  script:
+    - cmake .. -DCMAKE_BUILD_TYPE=Debug
+    - cmake --build . --config Debug
+    - ctest --build-config Debug --output-on-failure
+
+windows:
+  extends: .test
+  tags:
+    - windows
+
+linux:
+  extends: .test
+  tags:
+    - docker
+  image: rikorose/gcc-cmake
