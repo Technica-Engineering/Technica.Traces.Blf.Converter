@@ -1,0 +1,3 @@
+[submodule "vector_blf/vector_blf"] 
+  path = vector_blf/vector_blf 
+  url = https://bitbucket.org/tobylorenz/vector_blf.git
