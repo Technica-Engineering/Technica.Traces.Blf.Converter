@@ -88,7 +88,7 @@ public:
 	const uint8_t* data() {
 		return raw + 8;
 	}
-	void data(const uint8_t* value, rsize_t size) {
+	void data(const uint8_t* value, size_t size) {
 		memcpy(raw + 8, value, size);
 	}
 
