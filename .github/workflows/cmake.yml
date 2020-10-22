@@ -17,6 +17,7 @@ jobs:
           - os: macos-latest
     steps:
     - uses: actions/checkout@v2
+    - uses: textbook/git-checkout-submodule-action@master
     - name: Create Build Environment
       run: cmake -E make_directory build
 
