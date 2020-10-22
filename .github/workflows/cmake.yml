@@ -15,7 +15,8 @@ jobs:
         include:
           - os: ubuntu-latest
           - os: windows-latest
-          - os: macos-latest
+          # On macOS it fails to compile the upstream vector_blf repo
+          # - os: macos-latest
     steps:
     - uses: actions/checkout@v2
     - name: Checkout submodules
