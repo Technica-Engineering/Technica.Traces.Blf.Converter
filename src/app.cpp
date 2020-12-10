@@ -114,12 +114,15 @@ int write_packet(
 	ObjHeader* oh,
 	uint32_t length,
 	const uint8_t* data,
+	uint64_t date_offset_ns,
 	uint32_t flags = 0
 ) {
 
 	light_packet_interface interface = { 0 };
 	interface.link_type = link_type;
 	interface.name = (char*)std::to_string(oh->channel).c_str();
+	interface.description = "";
+	interface.timestamp_resolution = NANOS_PER_SEC;
 
 	uint64_t ts_resol = 0;
 	switch (oh->objectFlags) {
@@ -131,7 +134,17 @@ int write_packet(
 	}
 
 	light_packet_header header = { 0 };
-	uint64_t ts = (NANOS_PER_SEC / ts_resol) * oh->objectTimeStamp;
+
+	uint64_t ts = 0;
+	if ( ((Vector::BLF::ObjectHeader*)oh)->objectFlags == 1) {
+		ts = (NANOS_PER_SEC / ts_resol) * oh->objectTimeStamp;
+	} else if ( ((Vector::BLF::ObjectHeader*)oh)->objectFlags == 2) {
+		ts = oh->objectTimeStamp;
+	} else {
+		fprintf(stderr, "ERROR: The timestamp format is unknown (not 10us nor ns)!\n");
+	}
+
+	ts += date_offset_ns;
 	header.timestamp.tv_sec = ts / NANOS_PER_SEC;
 	header.timestamp.tv_nsec = ts % NANOS_PER_SEC;
 
@@ -142,7 +155,7 @@ int write_packet(
 }
 
 // CAN_MESSAGE = 1
-void write(light_pcapng outfile, CanMessage* obj) {
+void write(light_pcapng outfile, CanMessage* obj, uint64_t date_offset_ns) {
 	CanFrame can;
 
 	can.id(obj->id);
@@ -152,11 +165,11 @@ void write(light_pcapng outfile, CanMessage* obj) {
 
 	uint32_t flags = HAS_FLAG(obj->flags, 0) ? DIR_OUT : DIR_IN;
 
-	write_packet(outfile, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), flags);
+	write_packet(outfile, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
 }
 
 // CAN_MESSAGE2
-void write(light_pcapng outfile, CanMessage2* obj) {
+void write(light_pcapng outfile, CanMessage2* obj, uint64_t date_offset_ns) {
 	CanFrame can;
 
 	can.id(obj->id);
@@ -166,33 +179,33 @@ void write(light_pcapng outfile, CanMessage2* obj) {
 
 	uint32_t flags = HAS_FLAG(obj->flags, 0) ? DIR_OUT : DIR_IN;
 
-	write_packet(outfile, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), flags);
+	write_packet(outfile, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
 }
 
 template <class CanError>
-void write_can_error(light_pcapng outfile, CanError* obj) {
+void write_can_error(light_pcapng outfile, CanError* obj, uint64_t date_offset_ns) {
 
 	CanFrame can;
 	can.err(true);
 	can.len(8);
 
-	write_packet(outfile, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes());
+	write_packet(outfile, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns);
 }
 
 // CAN_ERROR = 2
-void write(light_pcapng outfile, CanErrorFrame* obj) {
+void write(light_pcapng outfile, CanErrorFrame* obj, uint64_t date_offset_ns) {
 
-	write_can_error(outfile, obj);
+	write_can_error(outfile, obj, date_offset_ns);
 }
 
 // CAN_ERROR_EXT = 73
-void write(light_pcapng outfile, CanErrorFrameExt* obj) {
+void write(light_pcapng outfile, CanErrorFrameExt* obj, uint64_t date_offset_ns) {
 
-	write_can_error(outfile, obj);
+	write_can_error(outfile, obj, date_offset_ns);
 }
 
 // CAN_FD_MESSAGE = 100
-void write(light_pcapng outfile, CanFdMessage* obj) {
+void write(light_pcapng outfile, CanFdMessage* obj, uint64_t date_offset_ns) {
 
 	CanFrame can;
 
@@ -208,11 +221,11 @@ void write(light_pcapng outfile, CanFdMessage* obj) {
 
 	uint32_t flags = HAS_FLAG(obj->flags, 0) ? DIR_OUT : DIR_IN;
 
-	write_packet(outfile, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), flags);
+	write_packet(outfile, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
 }
 
 // CAN_FD_MESSAGE_64 = 101
-void write(light_pcapng outfile, CanFdMessage64* obj) {
+void write(light_pcapng outfile, CanFdMessage64* obj, uint64_t date_offset_ns) {
 
 	CanFrame can;
 
@@ -230,17 +243,17 @@ void write(light_pcapng outfile, CanFdMessage64* obj) {
 
 	uint32_t flags = HAS_FLAG(obj->flags, 6) || HAS_FLAG(obj->flags, 7) ? DIR_OUT : DIR_IN;
 
-	write_packet(outfile, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes());
+	write_packet(outfile, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns);
 }
 
 // CAN_FD_ERROR_64 = 104
-void write(light_pcapng outfile, CanFdErrorFrame64* obj) {
+void write(light_pcapng outfile, CanFdErrorFrame64* obj, uint64_t date_offset_ns) {
 
-	write_can_error(outfile, obj);
+	write_can_error(outfile, obj, date_offset_ns);
 }
 
 // ETHERNET_FRAME = 71
-void write(light_pcapng outfile, EthernetFrame* obj) {
+void write(light_pcapng outfile, EthernetFrame* obj, uint64_t date_offset_ns) {
 
 	uint32_t flags = 0;
 	switch (obj->dir)
@@ -272,11 +285,11 @@ void write(light_pcapng outfile, EthernetFrame* obj) {
 
 	std::copy(obj->payLoad.begin(), obj->payLoad.end(), eth.begin() + header_size);
 
-	write_packet(outfile, LINKTYPE_ETHERNET, obj, obj->payLoad.size() + header_size, eth.data(), flags);
+	write_packet(outfile, LINKTYPE_ETHERNET, obj, obj->payLoad.size() + header_size, eth.data(), date_offset_ns, flags);
 }
 
 template <class TEthernetFrame>
-void write_ethernet_frame(light_pcapng outfile, TEthernetFrame* obj) {
+void write_ethernet_frame(light_pcapng outfile, TEthernetFrame* obj, uint64_t date_offset_ns) {
 	std::vector<uint8_t> eth(obj->frameData);
 
 	if (HAS_FLAG(obj->flags, 3)) {
@@ -296,22 +309,42 @@ void write_ethernet_frame(light_pcapng outfile, TEthernetFrame* obj) {
 		break;
 	}
 
-	write_packet(outfile, LINKTYPE_ETHERNET, obj, (uint32_t)eth.size(), eth.data(), flags);
+	write_packet(outfile, LINKTYPE_ETHERNET, obj, (uint32_t)eth.size(), eth.data(), date_offset_ns, flags);
 
 }
 
 // ETHERNET_FRAME_EX = 120
-void write(light_pcapng outfile, EthernetFrameEx* obj) {
+void write(light_pcapng outfile, EthernetFrameEx* obj, uint64_t date_offset_ns) {
 
-	write_ethernet_frame(outfile, obj);
+	write_ethernet_frame(outfile, obj, date_offset_ns);
 }
 
 // ETHERNET_FRAME_FORWARDED = 121
-void write(light_pcapng outfile, EthernetFrameForwarded* obj) {
+void write(light_pcapng outfile, EthernetFrameForwarded* obj, uint64_t date_offset_ns) {
 
-	write_ethernet_frame(outfile, obj);
+	write_ethernet_frame(outfile, obj, date_offset_ns);
 }
 
+uint64_t calculate_startdate(Vector::BLF::File *infile) {
+	Vector::BLF::SYSTEMTIME startTime;
+	startTime = infile->fileStatistics.measurementStartTime;
+
+	struct tm tms = { 0 };
+	tms.tm_year = startTime.year - 1900;
+	tms.tm_mon = startTime.month - 1;
+	tms.tm_mday = startTime.day;
+	tms.tm_hour = startTime.hour;
+	tms.tm_min = startTime.minute;
+	tms.tm_sec = startTime.second;
+
+	time_t ret = mktime(&tms);
+
+	ret *= 1000;
+	ret += startTime.milliseconds;
+	ret *= 1000 * 1000;
+
+	return ret;
+}
 
 int main(int argc, char* argv[]) {
 	if (argc != 3) {
@@ -331,6 +364,8 @@ int main(int argc, char* argv[]) {
 		return 1;
 	}
 
+	uint64_t startDate_ns = calculate_startdate(&infile);
+
 	while (infile.good()) {
 		ObjectHeaderBase* ohb = nullptr;
 
@@ -348,45 +383,44 @@ int main(int argc, char* argv[]) {
 		switch (ohb->objectType) {
 
 		case ObjectType::CAN_MESSAGE:
-			write(outfile, reinterpret_cast<CanMessage*>(ohb));
+			write(outfile, reinterpret_cast<CanMessage*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::CAN_ERROR:
-			write(outfile, reinterpret_cast<CanErrorFrame*>(ohb));
+			write(outfile, reinterpret_cast<CanErrorFrame*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::CAN_FD_MESSAGE:
-			write(outfile, reinterpret_cast<CanFdMessage*>(ohb));
+			write(outfile, reinterpret_cast<CanFdMessage*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::CAN_FD_MESSAGE_64:
-			write(outfile, reinterpret_cast<CanFdMessage64*>(ohb));
+			write(outfile, reinterpret_cast<CanFdMessage64*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::CAN_FD_ERROR_64:
-			write(outfile, reinterpret_cast<CanFdErrorFrame64*>(ohb));
+			write(outfile, reinterpret_cast<CanFdErrorFrame64*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::ETHERNET_FRAME:
-			write(outfile, reinterpret_cast<EthernetFrame*>(ohb));
+			write(outfile, reinterpret_cast<EthernetFrame*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::CAN_ERROR_EXT:
-			write(outfile, reinterpret_cast<CanErrorFrameExt*>(ohb));
+			write(outfile, reinterpret_cast<CanErrorFrameExt*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::CAN_MESSAGE2:
-			write(outfile, reinterpret_cast<CanMessage2*>(ohb));
+			write(outfile, reinterpret_cast<CanMessage2*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::ETHERNET_FRAME_EX:
-			write(outfile, reinterpret_cast<EthernetFrameEx*>(ohb));
+			write(outfile, reinterpret_cast<EthernetFrameEx*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::ETHERNET_FRAME_FORWARDED:
-			write(outfile, reinterpret_cast<EthernetFrameForwarded*>(ohb));
+			write(outfile, reinterpret_cast<EthernetFrameForwarded*>(ohb), startDate_ns);
 			break;
-
 		}
 
 		/* delete object */
