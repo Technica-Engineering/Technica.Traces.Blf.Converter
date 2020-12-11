@@ -315,7 +315,7 @@ void write(light_pcapng outfile, EthernetFrameForwarded* obj) {
 
 int main(int argc, char* argv[]) {
 	if (argc != 3) {
-		fprintf(stderr, "Usage %s [infile] [outfile]", argv[0]);
+		fprintf(stderr, "Usage %s [infile] [outfile]\n", argv[0]);
 		return 1;
 	}
 
