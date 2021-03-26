@@ -263,26 +263,29 @@ void write(light_pcapng outfile, EthernetFrame* obj, uint64_t date_offset_ns) {
 		break;
 	}
 
-	std::array<uint8_t, 1518> eth;
+	std::vector<uint8_t> eth;
+	// Pre allocate to remove need of reallocation
+	eth.reserve(14 + 4 + obj->payLoad.size());
 
-	std::copy(obj->destinationAddress.begin(), obj->destinationAddress.end(), eth.begin());
-	std::copy(obj->sourceAddress.begin(), obj->sourceAddress.end(), eth.begin() + 6);
+	eth.insert(eth.end(), obj->destinationAddress.begin(), obj->destinationAddress.end());
+	eth.insert(eth.end(), obj->sourceAddress.begin(), obj->sourceAddress.end());
 
-	uint8_t header_size = 14;
 	if (obj->tpid) {
-		header_size += 4;
-		eth[12] = (uint8_t)(obj->tpid >> 8);
-		eth[13] = (uint8_t)obj->tpid;
-		eth[14] = (uint8_t)(obj->tci >> 8);
-		eth[15] = (uint8_t)obj->tci;
+		std::array<uint8_t, 4> vlan = {
+			(uint8_t)(obj->tpid >> 8),
+			(uint8_t)obj->tpid,
+			(uint8_t)(obj->tci >> 8),
+			(uint8_t)obj->tci
+		};
+		eth.insert(eth.end(), vlan.begin(), vlan.end());
 	}
 
-	eth[header_size - 2] = (uint8_t)(obj->type >> 8);
-	eth[header_size - 1] = (uint8_t)obj->type;
+	eth.push_back((uint8_t)(obj->type >> 8));
+	eth.push_back((uint8_t)obj->type);
 
-	std::copy(obj->payLoad.begin(), obj->payLoad.end(), eth.begin() + header_size);
+	eth.insert(eth.end(), obj->payLoad.begin(), obj->payLoad.end());
 
-	write_packet(outfile, LINKTYPE_ETHERNET, obj, obj->payLoad.size() + header_size, eth.data(), date_offset_ns, flags);
+	write_packet(outfile, LINKTYPE_ETHERNET, obj, eth.size(), eth.data(), date_offset_ns, flags);
 }
 
 template <class TEthernetFrame>
