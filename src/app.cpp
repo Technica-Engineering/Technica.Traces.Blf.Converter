@@ -24,9 +24,17 @@ using namespace Vector::BLF;
 #define NANOS_PER_SEC 1000000000
 #define LINKTYPE_ETHERNET 1 
 #define LINKTYPE_CAN_SOCKETCAN 227 
+#define LINKTYPE_FLEXRAY 210
 
 #define DIR_IN    1
 #define DIR_OUT   2
+
+// Enumerations
+enum class FlexRayPacketType	
+{
+    FlexRayFrame             = 1,    // FlexRay Frame
+    FlexRaySymbol            = 2     // FlexRay Symbol
+};
 
 class CanFrame {
 private:
@@ -322,6 +330,410 @@ void write(light_pcapng outfile, EthernetFrameForwarded* obj, uint64_t date_offs
 	write_ethernet_frame(outfile, obj, date_offset_ns);
 }
 
+void set_measurment_header(uint8_t &measurementHeader, FlexRayPacketType packetType, uint16_t channelMask = 0)
+{
+	/// Measurement Header (1 byte)
+	// TI[0..6]: Type Index
+	// 0x01: FlexRay Frame
+	// 0x02: FlexRay Symbol
+	switch (packetType)
+	{
+	case FlexRayPacketType::FlexRayFrame:
+		measurementHeader = 0x01;
+		break;
+	case FlexRayPacketType::FlexRaySymbol:
+		measurementHeader = 0x02;
+		break;
+	}
+	// CH: Channel, indicates the Channel
+	// 1	: Channel A
+	// 2/3	: Channel B
+	switch (channelMask)
+	{
+	case 1: /* Channel A */
+		break;
+	case 2: /* Channel B */
+	case 3: /* Channel B */
+		measurementHeader |= 0x80;
+		break;
+	}
+}
+
+void set_header_crc(uint16_t channelMask, uint16_t headerCrc1, uint16_t headerCrc2, uint16_t &headerCrc)
+{
+	// CH: Channel, indicates the Channel
+	// 1	: Channel A
+	// 2/3	: Channel B
+	switch (channelMask)
+	{
+	case 1: /* Channel A */
+		headerCrc = headerCrc1;
+		break;
+	case 2: /* Channel B */
+	case 3: /* Channel B */
+		headerCrc = headerCrc2;
+		break;
+	}
+}
+
+void set_header_flags(uint16_t frameState, uint8_t &headerFlags)
+{
+	if (HAS_FLAG(frameState, 0))
+	{
+		headerFlags |= 0x08; // Payload preample indicator bit set to 1
+	}
+	if (HAS_FLAG(frameState, 1))
+	{
+		headerFlags |= 0x02; // Sync. frame indicator bit set to 1
+	}
+	if (HAS_FLAG(frameState, 2))
+	{
+		headerFlags |= 0x10; // Reserved bit set to 1
+	}
+	if (!HAS_FLAG(frameState, 3))
+	{
+		headerFlags |= 0x04; // Null frame indicator bit set to 1
+	}
+	if (HAS_FLAG(frameState, 4))
+	{
+		headerFlags |= 0x01; // Startup frame indicator bit set to 1
+	}
+}
+
+void set_header_flags_rcv_msg(uint32_t frameFlags, uint8_t &headerFlags)
+{
+	if (!HAS_FLAG(frameFlags, 0))
+	{
+		headerFlags |= 0x04; // Null frame indicator bit set to 1
+	}
+	if (HAS_FLAG(frameFlags, 2))
+	{
+		headerFlags |= 0x02; // Sync. frame indicator bit set to 1
+	}
+	if (HAS_FLAG(frameFlags, 3))
+	{
+		headerFlags |= 0x01; // Startup frame indicator bit set to 1
+	}
+	if (HAS_FLAG(frameFlags, 4))
+	{
+		headerFlags |= 0x08; // Payload preample indicator bit set to 1
+	}
+	if (HAS_FLAG(frameFlags, 5))
+	{
+		headerFlags |= 0x10; // Reserved bit set to 1
+	}
+}
+
+void set_header(uint64_t &header, uint8_t headerFlags, uint64_t payloadLength, uint8_t cycleCount = 0, uint16_t frameId = 0, uint16_t headerCrc = 0)
+{
+	header = (static_cast<uint64_t>(headerFlags) << 35) | (static_cast<uint64_t>(payloadLength & 0x7F) << 17);
+	if (cycleCount != 0)
+	{
+		header |= static_cast<uint64_t>(cycleCount & 0x3F);
+	}
+	if (frameId != 0)
+	{
+		header |= (static_cast<uint64_t>(frameId & 0x07FF) << 24);
+	}
+	if (headerCrc != 0)
+	{
+		header |= (static_cast<uint64_t>(headerCrc & 0x07FF) << 6);
+	}
+
+	// Convert from Host Byte Order to Network Byte Order (network order is big endian)
+	header = hton64(header);
+}
+
+// FLEXRAY_DATA = 29
+void write(light_pcapng outfile, FlexRayData* obj, uint64_t date_offset_ns) {
+
+	uint64_t header = 0;
+	uint8_t headerFlags = 0;
+	std::array<uint8_t, 261> flexrayData;
+
+	memset(&flexrayData, 0, sizeof(flexrayData));
+
+	/// Measurement Header (1 byte)
+	set_measurment_header(flexrayData[0], FlexRayPacketType::FlexRayFrame);
+
+	/// Error Flags Information (1 byte) -> set to 0
+
+	/// FlexRay Frame Header (5 bytes)
+	//  - Header flags
+	headerFlags |= 0x04; // Null Frame: False (indicator bit set to 1)
+	//  - Payload length
+	uint64_t len = obj->dataBytes.size() / 2;
+	set_header(header, headerFlags, len, 0, obj->messageId, obj->crc);
+
+	// Copy only 5 bytes of header to flexrayData
+	uint8_t * headerPtr = (uint8_t *)&header;
+	memcpy(&flexrayData[2], headerPtr + 3, 5);
+
+	// FlexRay Frame Payload (0-254 bytes)
+	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
+
+	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+}
+
+// FLEXRAY_SYNC = 30
+void write(light_pcapng outfile, FlexRaySync* obj, uint64_t date_offset_ns) {
+
+	uint64_t header = 0;
+	uint8_t headerFlags = 0;
+	std::array<uint8_t, 261> flexrayData;
+
+	memset(&flexrayData, 0, sizeof(flexrayData));
+
+	/// Measurement Header (1 byte)
+	set_measurment_header(flexrayData[0], FlexRayPacketType::FlexRayFrame);
+
+	/// Error Flags Information (1 byte) -> set to 0
+
+	/// FlexRay Frame Header (5 bytes)
+	//  - Header flags
+	headerFlags |= 0x04; // Null Frame: False (indicator bit set to 1)
+	headerFlags |= 0x02; // Sync. frame indicator bit set to 1
+
+	/// FlexRay Frame Header (5 bytes)
+	//  - Payload length
+	uint64_t len = obj->dataBytes.size() / 2;
+	set_header(header, headerFlags, len, obj->cycle, obj->messageId, obj->crc);
+
+	// Copy only 5 bytes of header to flexrayData
+	uint8_t * headerPtr = (uint8_t *)&header;
+	memcpy(&flexrayData[2], headerPtr + 3, 5);
+
+	// FlexRay Frame Payload (0-254 bytes)
+	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
+
+	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+}
+
+// FLEXRAY_CYCLE = 40
+void write(light_pcapng outfile, FlexRayV6StartCycleEvent* obj, uint64_t date_offset_ns) {
+
+	uint64_t header = 0;
+	uint8_t headerFlags = 0;
+	std::array<uint8_t, 261> flexrayData;
+
+	memset(&flexrayData, 0, sizeof(flexrayData));
+
+	/// Measurement Header (1 byte)
+	set_measurment_header(flexrayData[0], FlexRayPacketType::FlexRayFrame);
+
+	/// Error Flags Information (1 byte) -> set to 0
+
+	/// FlexRay Frame Header (5 bytes)
+	//  - Header flags
+	headerFlags |= 0x04; // Null Frame: False (indicator bit set to 1)
+	//  - Payload length
+	uint64_t len = obj->dataBytes.size() / 2;
+	set_header(header, headerFlags, len);
+
+	// Copy only 5 bytes of header to flexrayData
+	uint8_t * headerPtr = (uint8_t *)&header;
+	memcpy(&flexrayData[2], headerPtr + 3, 5);
+
+	// FlexRay Frame Payload (0-254 bytes)
+	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
+
+	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+}
+
+// FLEXRAY_MESSAGE = 41
+void write(light_pcapng outfile, FlexRayV6Message* obj, uint64_t date_offset_ns) {
+
+	uint64_t header = 0;
+	uint8_t headerFlags = 0;
+	std::array<uint8_t, 261> flexrayData;
+
+	memset(&flexrayData, 0, sizeof(flexrayData));
+
+	/// Measurement Header (1 byte)
+	set_measurment_header(flexrayData[0], FlexRayPacketType::FlexRayFrame);
+
+	/// Error Flags Information (1 byte) -> set to 0
+
+	/// FlexRay Frame Header (5 bytes)
+	set_header_flags(obj->frameState, headerFlags);
+	uint64_t len = obj->dataBytes.size() / 2;
+	set_header(header, headerFlags, len, obj->cycle, obj->frameId, obj->headerCrc);
+
+	// Copy only 5 bytes of header to flexrayData
+	uint8_t * headerPtr = (uint8_t *)&header;
+	memcpy(&flexrayData[2], headerPtr + 3, 5);
+
+	// FlexRay Frame Payload (0-254 bytes)
+	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
+
+	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+}
+
+// FR_ERROR = 47
+void write(light_pcapng outfile, FlexRayVFrError* obj, uint64_t date_offset_ns) {
+
+	uint64_t header = 0;
+	uint8_t headerFlags = 0;
+	std::array<uint8_t, 7> flexrayData;
+
+	memset(&flexrayData, 0, sizeof(flexrayData));
+
+	/// Measurement Header (1 byte)
+	set_measurment_header(flexrayData[0], FlexRayPacketType::FlexRayFrame, obj->channelMask);
+
+	/// Error Flags Information (1 byte)
+	flexrayData[1] |= 0x02; // Coding error bit (CODERR) set to 1
+
+	/// FlexRay Frame Header (5 bytes)
+	//  - Header flags
+	headerFlags |= 0x04; // Null Frame: False (indicator bit set to 1)
+	set_header(header, headerFlags, 0, obj->cycle);
+
+	// Copy only 5 bytes of header to flexrayData
+	uint8_t * headerPtr = (uint8_t *)&header;
+	memcpy(&flexrayData[2], headerPtr + 3, 5);
+
+	/// FlexRay Frame Payload (0-254 bytes) -> no payload
+
+	write_packet(outfile, LINKTYPE_FLEXRAY, obj, 7, flexrayData.data(), date_offset_ns);
+}
+
+// FR_STATUS = 48
+void write(light_pcapng outfile, FlexRayVFrStatus* obj, uint64_t date_offset_ns) {
+
+	std::array<uint8_t, 2> flexraySymbolData;
+
+	memset(&flexraySymbolData, 0, sizeof(flexraySymbolData));
+
+	/// Measurement Header (1 byte)
+	set_measurment_header(flexraySymbolData[0], FlexRayPacketType::FlexRaySymbol, obj->channelMask);
+
+	/// Symbol length (1 byte)
+	if (obj->tag == 3) /* BUSDOCTOR */
+	{
+		flexraySymbolData[1] = obj->data[1] & 0xFF;
+	}
+	if (obj->tag == 5) /* VN-Interface */
+	{
+		flexraySymbolData[1] = obj->data[0] & 0xFF;
+	}
+
+	write_packet(outfile, LINKTYPE_FLEXRAY, obj, 2, flexraySymbolData.data(), date_offset_ns);
+}
+
+// FR_STARTCYCLE = 49
+void write(light_pcapng outfile, FlexRayVFrStartCycle* obj, uint64_t date_offset_ns) {
+
+	uint64_t header = 0;
+	uint8_t headerFlags = 0;
+	std::array<uint8_t, 19> flexrayData;
+
+	memset(&flexrayData, 0, sizeof(flexrayData));
+
+	/// Measurement Header (1 byte)
+	set_measurment_header(flexrayData[0], FlexRayPacketType::FlexRayFrame, obj->channelMask);
+
+	/// Error Flags Information (1 byte) -> set to 0
+
+	/// FlexRay Frame Header (5 bytes)
+	//  - Header flags
+	headerFlags |= 0x04; // Null Frame: False (indicator bit set to 1)
+	//  - Payload length
+	uint64_t len = obj->dataBytes.size() / 2;
+	set_header(header, headerFlags, len, obj->cycle);
+
+	// Copy only 5 bytes of header to flexrayData
+	uint8_t * headerPtr = (uint8_t *)&header;
+	memcpy(&flexrayData[2], headerPtr + 3, 5);
+
+	// FlexRay Frame Payload (0-254 bytes)
+	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
+
+	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+}
+
+// FR_RCVMESSAGE = 50
+void write(light_pcapng outfile, FlexRayVFrReceiveMsg* obj, uint64_t date_offset_ns) {
+
+	uint64_t header = 0;
+	uint16_t headerCrc = 0;
+	uint8_t headerFlags = 0;
+	std::array<uint8_t, 261> flexrayData;
+
+	memset(&flexrayData, 0, sizeof(flexrayData));
+
+	/// Measurement Header (1 byte)
+	set_measurment_header(flexrayData[0], FlexRayPacketType::FlexRayFrame, obj->channelMask);
+
+	/// Error Flags Information (1 byte) -> case Error flag (error frame or invalid frame) set to 1
+	if (HAS_FLAG(obj->frameFlags, 6))
+	{
+		flexrayData[1] |= 0x10; // FCRCERR bit set to 1
+	}
+
+	/// FlexRay Frame Header (5 bytes)
+	//  - Header flags
+	set_header_flags_rcv_msg(obj->frameFlags, headerFlags);
+	// 	- Header CRC
+	set_header_crc(obj->channelMask, obj->headerCrc1, obj->headerCrc2, headerCrc);
+	//  - Payload length
+	uint64_t len = obj->dataBytes.size() / 2;
+	set_header(header, headerFlags, len, obj->cycle, obj->frameId, headerCrc);
+
+	// Copy only 5 bytes of header to flexrayData
+	uint8_t * headerPtr = (uint8_t *)&header;
+	memcpy(&flexrayData[2], headerPtr + 3, 5);
+
+	// FlexRay Frame Payload (0-254 bytes)
+	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
+
+	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+}
+
+// FR_RCVMESSAGE_EX = 66
+void write(light_pcapng outfile, FlexRayVFrReceiveMsgEx* obj, uint64_t date_offset_ns) {
+
+	uint64_t header = 0;
+	uint16_t headerCrc = 0;
+	uint8_t headerFlags = 0;
+	uint8_t measurementHeader = 0;
+	uint8_t errorFlagsInfo = 0;
+	std::vector<uint8_t> flexrayData;
+
+	flexrayData.clear();
+
+	/// Measurement Header (1 byte)
+	set_measurment_header(measurementHeader, FlexRayPacketType::FlexRayFrame, obj->channelMask);
+
+	flexrayData.push_back(measurementHeader);
+
+	/// Error Flags Information (1 byte) -> case Error flag (error frame or invalid frame) set to 1
+	if (HAS_FLAG(obj->frameFlags, 6))
+	{
+		errorFlagsInfo |= 0x10; // FCRCERR bit set to 1
+	}
+	flexrayData.push_back(errorFlagsInfo);
+
+	/// FlexRay Frame Header (5 bytes)
+	//  - Header flags
+	set_header_flags_rcv_msg(obj->frameFlags, headerFlags);
+	// 	- Header CRC
+	set_header_crc(obj->channelMask, obj->headerCrc1, obj->headerCrc2, headerCrc);
+	//  - Payload length
+	uint64_t len = obj->dataBytes.size() / 2;
+	set_header(header, headerFlags, len, obj->cycle, obj->frameId, headerCrc);
+
+	// Copy only 5 bytes of header to flexrayData
+	uint8_t * headerPtr = (uint8_t *)&header;
+	std::vector<uint8_t> headerVec(headerPtr + 3, headerPtr + 8);
+	flexrayData.insert(flexrayData.end(), headerVec.begin(), headerVec.end());
+
+	// FlexRay Frame Payload (0-254 bytes)
+	flexrayData.insert(flexrayData.end(), obj->dataBytes.begin(), obj->dataBytes.end());
+
+	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+}
+
 uint64_t calculate_startdate(Vector::BLF::File* infile) {
 	Vector::BLF::SYSTEMTIME startTime;
 	startTime = infile->fileStatistics.measurementStartTime;
@@ -418,6 +830,47 @@ int main(int argc, char* argv[]) {
 		case ObjectType::ETHERNET_FRAME_FORWARDED:
 			write(outfile, reinterpret_cast<EthernetFrameForwarded*>(ohb), startDate_ns);
 			break;
+
+		case ObjectType::FLEXRAY_DATA:
+			write(outfile, reinterpret_cast<FlexRayData*>(ohb), startDate_ns);
+			break;
+
+		case ObjectType::FLEXRAY_SYNC:
+			write(outfile, reinterpret_cast<FlexRaySync*>(ohb), startDate_ns);
+			break;
+
+		case ObjectType::FLEXRAY_CYCLE:
+			write(outfile, reinterpret_cast<FlexRayV6StartCycleEvent*>(ohb), startDate_ns);
+			break;
+
+		case ObjectType::FLEXRAY_MESSAGE:
+			write(outfile, reinterpret_cast<FlexRayV6Message*>(ohb), startDate_ns);
+			break;
+
+		case ObjectType::FLEXRAY_STATUS:
+			// We do not have reliable BLF file or clear documentation for this type
+			break;
+
+		case ObjectType::FR_ERROR:
+			write(outfile, reinterpret_cast<FlexRayVFrError*>(ohb), startDate_ns);
+			break;
+
+		case ObjectType::FR_STATUS:
+			write(outfile, reinterpret_cast<FlexRayVFrStatus*>(ohb), startDate_ns);
+			break;
+
+		case ObjectType::FR_STARTCYCLE:
+			write(outfile, reinterpret_cast<FlexRayVFrStartCycle*>(ohb), startDate_ns);
+			break;
+
+		case ObjectType::FR_RCVMESSAGE:
+			write(outfile, reinterpret_cast<FlexRayVFrReceiveMsg*>(ohb), startDate_ns);
+			break;
+
+		case ObjectType::FR_RCVMESSAGE_EX:
+			write(outfile, reinterpret_cast<FlexRayVFrReceiveMsgEx*>(ohb), startDate_ns);
+			break;
+
 		}
 
 		/* delete object */
