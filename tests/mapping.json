@@ -1,0 +1,23 @@
+{
+    "version": 1,
+    "mappings": [
+      {
+        "when": {
+          "chl_id": "0xca"
+        },
+        "change": {
+          "inf_name": "can0",
+          "pkt_dir": "Tx"
+        }
+      },
+      {
+        "when": {
+          "chl_id": 3
+        },
+        "change": {
+          "inf_name": "can_three",
+          "pkt_dir": "Rx"
+        }
+      }
+    ]
+}

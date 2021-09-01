@@ -5,6 +5,6 @@ include(FetchContent)
 FetchContent_Declare(
   pcapng
   GIT_REPOSITORY    https://github.com/Technica-Engineering/LightPcapNg.git
-  GIT_TAG           a35bf6e
+  GIT_TAG           3c848a6
 )
 FetchContent_MakeAvailable(pcapng)

@@ -14,10 +14,12 @@ endif()
 
 include(cmake/pcapng.cmake)
 include(cmake/zlib.cmake)
+include(cmake/pcapng_exporter.cmake)
 add_subdirectory(vector_blf)
 
 add_executable(blf_converter "src/app.cpp" "src/endianness.h")
 target_link_libraries(blf_converter light_pcapng_static)
+target_link_libraries(blf_converter pcapng_exporter)
 target_link_libraries(blf_converter Vector_BLF)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
@@ -55,6 +57,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
             COMMAND blf_converter 
                 "${CMAKE_CURRENT_LIST_DIR}/vector_blf/vector_blf/src/Vector/BLF/tests/unittests/events_from_${blf_test}.blf"
                 "${CMAKE_CURRENT_LIST_DIR}/tests/results/events_from_${blf_test}.pcapng"
+                "${CMAKE_CURRENT_LIST_DIR}/tests/mapping.json"
         )
     endforeach()
 
