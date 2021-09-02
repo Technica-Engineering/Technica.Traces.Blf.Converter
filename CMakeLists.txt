@@ -14,10 +14,14 @@ endif()
 
 include(cmake/pcapng.cmake)
 include(cmake/zlib.cmake)
+include(cmake/pcapng_exporter.cmake)
+include(cmake/args.cmake)
 add_subdirectory(vector_blf)
 
 add_executable(blf_converter "src/app.cpp" "src/endianness.h")
 target_link_libraries(blf_converter light_pcapng_static)
+target_link_libraries(blf_converter pcapng_exporter)
+target_link_libraries(blf_converter args)
 target_link_libraries(blf_converter Vector_BLF)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
@@ -47,6 +51,8 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
 
     list(APPEND blf_tests "converter/test_EthernetFrame")
 
+    list(APPEND blf_mapping_tests "test_CanMessage")
+
     foreach(blf_test ${blf_tests})
         get_filename_component(param ${blf_test} NAME)
         string(REPLACE "/" "." param ${blf_test})
@@ -55,6 +61,17 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
             COMMAND blf_converter 
                 "${CMAKE_CURRENT_LIST_DIR}/vector_blf/vector_blf/src/Vector/BLF/tests/unittests/events_from_${blf_test}.blf"
                 "${CMAKE_CURRENT_LIST_DIR}/tests/results/events_from_${blf_test}.pcapng"
+        )
+    endforeach()
+    foreach(blf_test ${blf_mapping_tests})
+        get_filename_component(param ${blf_test} NAME)
+        string(REPLACE "/" "." param ${blf_test})
+        add_test(
+            NAME "mapping.${param}"
+            COMMAND blf_converter 
+                "--channel-map" "${CMAKE_CURRENT_LIST_DIR}/tests/mapping.json"
+                "${CMAKE_CURRENT_LIST_DIR}/tests/input/${blf_test}.blf"
+                "${CMAKE_CURRENT_LIST_DIR}/tests/results/mapping/from_${blf_test}.pcapng"
         )
     endforeach()
 
