@@ -3,20 +3,20 @@
     "mappings": [
       {
         "when": {
-          "chl_id": "0xca"
+          "chl_id": 2
         },
         "change": {
-          "inf_name": "can0",
-          "pkt_dir": "Tx"
+          "inf_name": "can_two",
+          "pkt_dir": "Rx"
         }
       },
       {
         "when": {
-          "chl_id": 3
+          "chl_id": 1
         },
         "change": {
-          "inf_name": "can_three",
-          "pkt_dir": "Rx"
+          "inf_name": "can_one",
+          "pkt_dir": "Tx"
         }
       }
     ]

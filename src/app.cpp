@@ -19,6 +19,7 @@
 #include "pcapng_exporter/lin.h"
 #include "pcapng_exporter/linktype.h"
 #include "pcapng_exporter/pcapng_exporter.hpp"
+#include <args.hxx>
 
 using namespace Vector::BLF;
 
@@ -349,19 +350,39 @@ uint64_t calculate_startdate(Vector::BLF::File* infile) {
 }
 
 int main(int argc, char* argv[]) {
-	if (argc != 4) {
-		fprintf(stderr, "Usage %s [infile] [outfile] [mappingfile]\n", argv[0]);
+	args::ArgumentParser parser("This tool is intended for converting BLF files to plain PCAPNG files.");
+	parser.helpParams.showTerminator = false;
+	parser.helpParams.proglineShowFlags = true;
+
+	args::HelpFlag help(parser, "help", "", { 'h', "help" }, args::Options::HiddenFromUsage);
+	args::ValueFlag<std::string> maparg(parser, "map-file", "Configuration file for channel mapping", { "channel-map" });
+
+	args::Positional<std::string> inarg(parser, "infile", "Input File", args::Options::Required);
+	args::Positional<std::string> outarg(parser, "outfile", "Output File", args::Options::Required);
+
+	try
+	{
+		parser.ParseCLI(argc, argv);
+	}
+	catch (args::Help)
+	{
+		std::cout << parser;
+		return 0;
+	}
+	catch (args::Error e)
+	{
+		std::cerr << e.what() << std::endl;
+		std::cerr << parser;
 		return 1;
 	}
 
 	Vector::BLF::File infile;
-	infile.open(argv[1]);
+	infile.open(args::get(inarg));
 	if (!infile.is_open()) {
 		fprintf(stderr, "Unable to open: %s\n", argv[1]);
 		return 1;
 	}
-	light_pcapng outfile = light_pcapng_open(argv[2], "wb");
-	pcapng_exporter::PcapngExporter exporter = pcapng_exporter::PcapngExporter(argv[2], argv[3]);
+	pcapng_exporter::PcapngExporter exporter = pcapng_exporter::PcapngExporter(args::get(outarg), maparg.Get());
 
 	uint64_t startDate_ns = calculate_startdate(&infile);
 
@@ -425,9 +446,6 @@ int main(int argc, char* argv[]) {
 		/* delete object */
 		delete ohb;
 	}
-
 	infile.close();
-	light_pcapng_close(outfile);
-
 	return 0;
 }
