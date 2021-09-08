@@ -24,6 +24,8 @@ target_link_libraries(blf_converter pcapng_exporter)
 target_link_libraries(blf_converter args)
 target_link_libraries(blf_converter Vector_BLF)
 
+install(TARGETS blf_converter COMPONENT blf_converter)
+
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     # Testing
     include(CTest)

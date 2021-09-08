@@ -451,7 +451,7 @@ void set_header(uint64_t &header, uint8_t headerFlags, uint64_t payloadLength, u
 }
 
 // FLEXRAY_DATA = 29
-void write(light_pcapng outfile, FlexRayData* obj, uint64_t date_offset_ns) {
+void write(pcapng_exporter::PcapngExporter exporter, FlexRayData* obj, uint64_t date_offset_ns) {
 
 	uint64_t header = 0;
 	uint8_t headerFlags = 0;
@@ -478,11 +478,11 @@ void write(light_pcapng outfile, FlexRayData* obj, uint64_t date_offset_ns) {
 	// FlexRay Frame Payload (0-254 bytes)
 	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
 
-	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
 }
 
 // FLEXRAY_SYNC = 30
-void write(light_pcapng outfile, FlexRaySync* obj, uint64_t date_offset_ns) {
+void write(pcapng_exporter::PcapngExporter exporter, FlexRaySync* obj, uint64_t date_offset_ns) {
 
 	uint64_t header = 0;
 	uint8_t headerFlags = 0;
@@ -512,11 +512,11 @@ void write(light_pcapng outfile, FlexRaySync* obj, uint64_t date_offset_ns) {
 	// FlexRay Frame Payload (0-254 bytes)
 	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
 
-	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
 }
 
 // FLEXRAY_CYCLE = 40
-void write(light_pcapng outfile, FlexRayV6StartCycleEvent* obj, uint64_t date_offset_ns) {
+void write(pcapng_exporter::PcapngExporter exporter, FlexRayV6StartCycleEvent* obj, uint64_t date_offset_ns) {
 
 	uint64_t header = 0;
 	uint8_t headerFlags = 0;
@@ -543,11 +543,11 @@ void write(light_pcapng outfile, FlexRayV6StartCycleEvent* obj, uint64_t date_of
 	// FlexRay Frame Payload (0-254 bytes)
 	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
 
-	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
 }
 
 // FLEXRAY_MESSAGE = 41
-void write(light_pcapng outfile, FlexRayV6Message* obj, uint64_t date_offset_ns) {
+void write(pcapng_exporter::PcapngExporter exporter, FlexRayV6Message* obj, uint64_t date_offset_ns) {
 
 	uint64_t header = 0;
 	uint8_t headerFlags = 0;
@@ -572,11 +572,11 @@ void write(light_pcapng outfile, FlexRayV6Message* obj, uint64_t date_offset_ns)
 	// FlexRay Frame Payload (0-254 bytes)
 	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
 
-	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
 }
 
 // FR_ERROR = 47
-void write(light_pcapng outfile, FlexRayVFrError* obj, uint64_t date_offset_ns) {
+void write(pcapng_exporter::PcapngExporter exporter, FlexRayVFrError* obj, uint64_t date_offset_ns) {
 
 	uint64_t header = 0;
 	uint8_t headerFlags = 0;
@@ -601,11 +601,11 @@ void write(light_pcapng outfile, FlexRayVFrError* obj, uint64_t date_offset_ns) 
 
 	/// FlexRay Frame Payload (0-254 bytes) -> no payload
 
-	write_packet(outfile, LINKTYPE_FLEXRAY, obj, 7, flexrayData.data(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_FLEXRAY, obj, 7, flexrayData.data(), date_offset_ns);
 }
 
 // FR_STATUS = 48
-void write(light_pcapng outfile, FlexRayVFrStatus* obj, uint64_t date_offset_ns) {
+void write(pcapng_exporter::PcapngExporter exporter, FlexRayVFrStatus* obj, uint64_t date_offset_ns) {
 
 	std::array<uint8_t, 2> flexraySymbolData;
 
@@ -624,11 +624,11 @@ void write(light_pcapng outfile, FlexRayVFrStatus* obj, uint64_t date_offset_ns)
 		flexraySymbolData[1] = obj->data[0] & 0xFF;
 	}
 
-	write_packet(outfile, LINKTYPE_FLEXRAY, obj, 2, flexraySymbolData.data(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_FLEXRAY, obj, 2, flexraySymbolData.data(), date_offset_ns);
 }
 
 // FR_STARTCYCLE = 49
-void write(light_pcapng outfile, FlexRayVFrStartCycle* obj, uint64_t date_offset_ns) {
+void write(pcapng_exporter::PcapngExporter exporter, FlexRayVFrStartCycle* obj, uint64_t date_offset_ns) {
 
 	uint64_t header = 0;
 	uint8_t headerFlags = 0;
@@ -655,11 +655,11 @@ void write(light_pcapng outfile, FlexRayVFrStartCycle* obj, uint64_t date_offset
 	// FlexRay Frame Payload (0-254 bytes)
 	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
 
-	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
 }
 
 // FR_RCVMESSAGE = 50
-void write(light_pcapng outfile, FlexRayVFrReceiveMsg* obj, uint64_t date_offset_ns) {
+void write(pcapng_exporter::PcapngExporter exporter, FlexRayVFrReceiveMsg* obj, uint64_t date_offset_ns) {
 
 	uint64_t header = 0;
 	uint16_t headerCrc = 0;
@@ -693,11 +693,11 @@ void write(light_pcapng outfile, FlexRayVFrReceiveMsg* obj, uint64_t date_offset
 	// FlexRay Frame Payload (0-254 bytes)
 	std::copy(obj->dataBytes.begin(), obj->dataBytes.end(), flexrayData.begin() + 7);
 
-	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
 }
 
 // FR_RCVMESSAGE_EX = 66
-void write(light_pcapng outfile, FlexRayVFrReceiveMsgEx* obj, uint64_t date_offset_ns) {
+void write(pcapng_exporter::PcapngExporter exporter, FlexRayVFrReceiveMsgEx* obj, uint64_t date_offset_ns) {
 
 	uint64_t header = 0;
 	uint16_t headerCrc = 0;
@@ -737,7 +737,7 @@ void write(light_pcapng outfile, FlexRayVFrReceiveMsgEx* obj, uint64_t date_offs
 	// FlexRay Frame Payload (0-254 bytes)
 	flexrayData.insert(flexrayData.end(), obj->dataBytes.begin(), obj->dataBytes.end());
 
-	write_packet(outfile, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_FLEXRAY, obj, obj->dataBytes.size() + 7, flexrayData.data(), date_offset_ns);
 }
 
 uint64_t calculate_startdate(Vector::BLF::File* infile) {
@@ -855,19 +855,19 @@ int main(int argc, char* argv[]) {
 			break;
 
 		case ObjectType::FLEXRAY_DATA:
-			write(outfile, reinterpret_cast<FlexRayData*>(ohb), startDate_ns);
+			write(exporter, reinterpret_cast<FlexRayData*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::FLEXRAY_SYNC:
-			write(outfile, reinterpret_cast<FlexRaySync*>(ohb), startDate_ns);
+			write(exporter, reinterpret_cast<FlexRaySync*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::FLEXRAY_CYCLE:
-			write(outfile, reinterpret_cast<FlexRayV6StartCycleEvent*>(ohb), startDate_ns);
+			write(exporter, reinterpret_cast<FlexRayV6StartCycleEvent*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::FLEXRAY_MESSAGE:
-			write(outfile, reinterpret_cast<FlexRayV6Message*>(ohb), startDate_ns);
+			write(exporter, reinterpret_cast<FlexRayV6Message*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::FLEXRAY_STATUS:
@@ -875,23 +875,23 @@ int main(int argc, char* argv[]) {
 			break;
 
 		case ObjectType::FR_ERROR:
-			write(outfile, reinterpret_cast<FlexRayVFrError*>(ohb), startDate_ns);
+			write(exporter, reinterpret_cast<FlexRayVFrError*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::FR_STATUS:
-			write(outfile, reinterpret_cast<FlexRayVFrStatus*>(ohb), startDate_ns);
+			write(exporter, reinterpret_cast<FlexRayVFrStatus*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::FR_STARTCYCLE:
-			write(outfile, reinterpret_cast<FlexRayVFrStartCycle*>(ohb), startDate_ns);
+			write(exporter, reinterpret_cast<FlexRayVFrStartCycle*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::FR_RCVMESSAGE:
-			write(outfile, reinterpret_cast<FlexRayVFrReceiveMsg*>(ohb), startDate_ns);
+			write(exporter, reinterpret_cast<FlexRayVFrReceiveMsg*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::FR_RCVMESSAGE_EX:
-			write(outfile, reinterpret_cast<FlexRayVFrReceiveMsgEx*>(ohb), startDate_ns);
+			write(exporter, reinterpret_cast<FlexRayVFrReceiveMsgEx*>(ohb), startDate_ns);
 			break;
 
 		}

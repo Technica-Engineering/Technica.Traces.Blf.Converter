@@ -29,8 +29,18 @@ jobs:
 
     - name: Build
       working-directory: build
-      run: cmake --build . --config ${{env.BUILD_TYPE}}
+      run: |
+        cmake --build . --config ${{env.BUILD_TYPE}}
+        cmake --install . --prefix ../dist --component blf_converter
 
     - name: Test
       working-directory: build
       run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure
+
+        
+    - name: 'Upload Artifacts'
+      uses: actions/upload-artifact@v2
+      with:
+        name: ${{matrix.os}} artifacts
+        path: dist
+        retention-days: 7
