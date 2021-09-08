@@ -44,12 +44,25 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
     list(APPEND blf_tests "binlog/test_EthernetFrameEx")
     list(APPEND blf_tests "binlog/test_EthernetFrameForwarded")
 
+    list(APPEND blf_tests "binlog/test_FlexRayData")
+    list(APPEND blf_tests "binlog/test_FlexRayStatusEvent")
+    list(APPEND blf_tests "binlog/test_FlexRaySync")
+    list(APPEND blf_tests "binlog/test_FlexRayV6Message")
+    list(APPEND blf_tests "binlog/test_FlexRayV6StartCycleEvent")
+    list(APPEND blf_tests "binlog/test_FlexRayVFrError")
+    list(APPEND blf_tests "binlog/test_FlexRayVFrReceiveMsg")
+    list(APPEND blf_tests "binlog/test_FlexRayVFrReceiveMsgEx")
+    list(APPEND blf_tests "binlog/test_FlexRayVFrStartCycle")
+    list(APPEND blf_tests "binlog/test_FlexRayVFrStatus")
+
     list(APPEND blf_tests "converter/test_CanErrorExt")
     list(APPEND blf_tests "converter/test_CanErrorFrame")
     list(APPEND blf_tests "converter/test_CanErrorFrameExt")
     list(APPEND blf_tests "converter/test_CanMessage")
 
     list(APPEND blf_tests "converter/test_EthernetFrame")
+    list(APPEND blf_tests "converter/test_FlexRayVFrReceiveMsgEx")
+    list(APPEND blf_tests "converter/test_FlexRayVFrStartCycle")
 
     list(APPEND blf_mapping_tests "test_CanMessage")
 
