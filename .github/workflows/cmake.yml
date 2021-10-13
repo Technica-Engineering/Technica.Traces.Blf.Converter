@@ -43,4 +43,3 @@ jobs:
       with:
         name: ${{matrix.os}} artifacts
         path: dist
-        retention-days: 7
