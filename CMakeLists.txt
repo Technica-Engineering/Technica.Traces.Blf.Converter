@@ -19,10 +19,7 @@ include(cmake/args.cmake)
 add_subdirectory(vector_blf)
 
 add_executable(blf_converter "src/app.cpp" "src/endianness.h")
-target_link_libraries(blf_converter light_pcapng_static)
-target_link_libraries(blf_converter pcapng_exporter)
-target_link_libraries(blf_converter args)
-target_link_libraries(blf_converter Vector_BLF)
+target_link_libraries(blf_converter light_pcapng pcapng_exporter args Vector_BLF)
 
 install(TARGETS blf_converter COMPONENT blf_converter)
 
