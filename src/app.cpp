@@ -26,9 +26,6 @@ using namespace Vector::BLF;
 #define HAS_FLAG(var,pos) ((var) & (1<<(pos)))
 
 #define NANOS_PER_SEC 1000000000
-#define LINKTYPE_ETHERNET 1 
-#define LINKTYPE_CAN_SOCKETCAN 227 
-#define LINKTYPE_FLEXRAY 210
 
 #define DIR_IN    1
 #define DIR_OUT   2
@@ -174,7 +171,7 @@ void write(pcapng_exporter::PcapngExporter exporter, CanMessage* obj, uint64_t d
 	can.data(obj->data.data(), obj->data.size());
 
 	uint32_t flags = HAS_FLAG(obj->flags, 0) ? DIR_OUT : DIR_IN;
-	write_packet(exporter, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
+	write_packet(exporter, LINKTYPE_CAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
 }
 
 // CAN_MESSAGE2
@@ -188,7 +185,7 @@ void write(pcapng_exporter::PcapngExporter exporter, CanMessage2* obj, uint64_t 
 
 	uint32_t flags = HAS_FLAG(obj->flags, 0) ? DIR_OUT : DIR_IN;
 
-	write_packet(exporter, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
+	write_packet(exporter, LINKTYPE_CAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
 }
 
 template <class CanError>
@@ -197,7 +194,7 @@ void write_can_error(pcapng_exporter::PcapngExporter exporter, CanError* obj, ui
 	CanFrame can;
 	can.err(true);
 	can.len(8);
-	write_packet(exporter, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_CAN, obj, can.size(), can.bytes(), date_offset_ns);
 }
 
 // CAN_ERROR = 2
@@ -229,7 +226,7 @@ void write(pcapng_exporter::PcapngExporter exporter, CanFdMessage* obj, uint64_t
 
 	uint32_t flags = HAS_FLAG(obj->flags, 0) ? DIR_OUT : DIR_IN;
 
-	write_packet(exporter, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
+	write_packet(exporter, LINKTYPE_CAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
 }
 
 // CAN_FD_MESSAGE_64 = 101
@@ -251,7 +248,7 @@ void write(pcapng_exporter::PcapngExporter exporter, CanFdMessage64* obj, uint64
 
 	uint32_t flags = HAS_FLAG(obj->flags, 6) || HAS_FLAG(obj->flags, 7) ? DIR_OUT : DIR_IN;
 
-	write_packet(exporter, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_CAN, obj, can.size(), can.bytes(), date_offset_ns);
 }
 
 // CAN_FD_ERROR_64 = 104
@@ -773,19 +770,32 @@ std::vector<std::string> split(const std::string& s, char delim) {
 	return result;
 }
 
+std::optional<uint16_t> bus_type_to_linklayer(uint32_t bus_type) {
+	switch (bus_type)
+	{
+	case 0x01: return LINKTYPE_CAN;
+	case 0x05: return LINKTYPE_LIN;
+	case 0x07: return LINKTYPE_FLEXRAY;
+	case 0x0B: return LINKTYPE_ETHERNET;
+	default: return std::nullopt;
+	}
+}
+
 void configure(pcapng_exporter::PcapngExporter* exporter, AppText* obj) {
 	if (obj->source != AppText::Source::DbChannelInfo) {
 		// Does not contain channel mapping
 		return;
 	}
 	auto channel_id = (obj->reservedAppText1 >> 8) & 0xFF;
+	auto channel_link = bus_type_to_linklayer((obj->reservedAppText1 >> 16) & 0xFF);
 	auto db_channels = split(obj->text, ';');
-	if (db_channels.size() < 2) {
+	if (db_channels.size() < 2 || !channel_link.has_value()) {
 		// Invalid mapping
 		return;
 	}
 	pcapng_exporter::channel_mapping mapping;
 	mapping.when.chl_id = channel_id;
+	mapping.when.chl_link = channel_link;
 	mapping.change.inf_name = db_channels[1];
 	exporter->mappings.push_back(mapping);
 }
