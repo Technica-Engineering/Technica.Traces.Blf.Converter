@@ -26,18 +26,15 @@ using namespace Vector::BLF;
 #define HAS_FLAG(var,pos) ((var) & (1<<(pos)))
 
 #define NANOS_PER_SEC 1000000000
-#define LINKTYPE_ETHERNET 1 
-#define LINKTYPE_CAN_SOCKETCAN 227 
-#define LINKTYPE_FLEXRAY 210
 
 #define DIR_IN    1
 #define DIR_OUT   2
 
 // Enumerations
-enum class FlexRayPacketType	
+enum class FlexRayPacketType
 {
-    FlexRayFrame             = 1,    // FlexRay Frame
-    FlexRaySymbol            = 2     // FlexRay Symbol
+	FlexRayFrame = 1,    // FlexRay Frame
+	FlexRaySymbol = 2     // FlexRay Symbol
 };
 
 class CanFrame {
@@ -136,7 +133,7 @@ int write_packet(
 	char name_str[256] = { 0 };
 	memcpy(name_str, name.c_str(), sizeof(char) * std::min((size_t)255, name.length()));
 	interface.name = name_str;
-	
+
 	uint64_t ts_resol = 0;
 	switch (oh->objectFlags) {
 	case ObjectHeader::ObjectFlags::TimeTenMics:
@@ -160,7 +157,7 @@ int write_packet(
 	header.captured_length = length;
 	header.original_length = length;
 
-	exporter.write_packet(oh->channel ,interface, header, data);
+	exporter.write_packet(oh->channel, interface, header, data);
 	return 0;
 }
 
@@ -174,7 +171,7 @@ void write(pcapng_exporter::PcapngExporter exporter, CanMessage* obj, uint64_t d
 	can.data(obj->data.data(), obj->data.size());
 
 	uint32_t flags = HAS_FLAG(obj->flags, 0) ? DIR_OUT : DIR_IN;
-	write_packet(exporter, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
+	write_packet(exporter, LINKTYPE_CAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
 }
 
 // CAN_MESSAGE2
@@ -187,8 +184,8 @@ void write(pcapng_exporter::PcapngExporter exporter, CanMessage2* obj, uint64_t 
 	can.data(obj->data.data(), obj->data.size());
 
 	uint32_t flags = HAS_FLAG(obj->flags, 0) ? DIR_OUT : DIR_IN;
-	
-	write_packet(exporter, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
+
+	write_packet(exporter, LINKTYPE_CAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
 }
 
 template <class CanError>
@@ -197,7 +194,7 @@ void write_can_error(pcapng_exporter::PcapngExporter exporter, CanError* obj, ui
 	CanFrame can;
 	can.err(true);
 	can.len(8);
-	write_packet(exporter, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_CAN, obj, can.size(), can.bytes(), date_offset_ns);
 }
 
 // CAN_ERROR = 2
@@ -229,7 +226,7 @@ void write(pcapng_exporter::PcapngExporter exporter, CanFdMessage* obj, uint64_t
 
 	uint32_t flags = HAS_FLAG(obj->flags, 0) ? DIR_OUT : DIR_IN;
 
-	write_packet(exporter, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
+	write_packet(exporter, LINKTYPE_CAN, obj, can.size(), can.bytes(), date_offset_ns, flags);
 }
 
 // CAN_FD_MESSAGE_64 = 101
@@ -251,7 +248,7 @@ void write(pcapng_exporter::PcapngExporter exporter, CanFdMessage64* obj, uint64
 
 	uint32_t flags = HAS_FLAG(obj->flags, 6) || HAS_FLAG(obj->flags, 7) ? DIR_OUT : DIR_IN;
 
-	write_packet(exporter, LINKTYPE_CAN_SOCKETCAN, obj, can.size(), can.bytes(), date_offset_ns);
+	write_packet(exporter, LINKTYPE_CAN, obj, can.size(), can.bytes(), date_offset_ns);
 }
 
 // CAN_FD_ERROR_64 = 104
@@ -336,7 +333,7 @@ void write(pcapng_exporter::PcapngExporter exporter, EthernetFrameForwarded* obj
 	write_ethernet_frame(exporter, obj, date_offset_ns);
 }
 
-void set_measurment_header(uint8_t &measurementHeader, FlexRayPacketType packetType, uint16_t channelMask = 0)
+void set_measurment_header(uint8_t& measurementHeader, FlexRayPacketType packetType, uint16_t channelMask = 0)
 {
 	/// Measurement Header (1 byte)
 	// TI[0..6]: Type Index
@@ -365,7 +362,7 @@ void set_measurment_header(uint8_t &measurementHeader, FlexRayPacketType packetT
 	}
 }
 
-void set_header_crc(uint16_t channelMask, uint16_t headerCrc1, uint16_t headerCrc2, uint16_t &headerCrc)
+void set_header_crc(uint16_t channelMask, uint16_t headerCrc1, uint16_t headerCrc2, uint16_t& headerCrc)
 {
 	// CH: Channel, indicates the Channel
 	// 1	: Channel A
@@ -382,7 +379,7 @@ void set_header_crc(uint16_t channelMask, uint16_t headerCrc1, uint16_t headerCr
 	}
 }
 
-void set_header_flags(uint16_t frameState, uint8_t &headerFlags)
+void set_header_flags(uint16_t frameState, uint8_t& headerFlags)
 {
 	if (HAS_FLAG(frameState, 0))
 	{
@@ -406,7 +403,7 @@ void set_header_flags(uint16_t frameState, uint8_t &headerFlags)
 	}
 }
 
-void set_header_flags_rcv_msg(uint32_t frameFlags, uint8_t &headerFlags)
+void set_header_flags_rcv_msg(uint32_t frameFlags, uint8_t& headerFlags)
 {
 	if (!HAS_FLAG(frameFlags, 0))
 	{
@@ -430,7 +427,7 @@ void set_header_flags_rcv_msg(uint32_t frameFlags, uint8_t &headerFlags)
 	}
 }
 
-void set_header(uint64_t &header, uint8_t headerFlags, uint64_t payloadLength, uint8_t cycleCount = 0, uint16_t frameId = 0, uint16_t headerCrc = 0)
+void set_header(uint64_t& header, uint8_t headerFlags, uint64_t payloadLength, uint8_t cycleCount = 0, uint16_t frameId = 0, uint16_t headerCrc = 0)
 {
 	header = (static_cast<uint64_t>(headerFlags) << 35) | (static_cast<uint64_t>(payloadLength & 0x7F) << 17);
 	if (cycleCount != 0)
@@ -472,7 +469,7 @@ void write(pcapng_exporter::PcapngExporter exporter, FlexRayData* obj, uint64_t 
 	set_header(header, headerFlags, len, 0, obj->messageId, obj->crc);
 
 	// Copy only 5 bytes of header to flexrayData
-	uint8_t * headerPtr = (uint8_t *)&header;
+	uint8_t* headerPtr = (uint8_t*)&header;
 	memcpy(&flexrayData[2], headerPtr + 3, 5);
 
 	// FlexRay Frame Payload (0-254 bytes)
@@ -506,7 +503,7 @@ void write(pcapng_exporter::PcapngExporter exporter, FlexRaySync* obj, uint64_t 
 	set_header(header, headerFlags, len, obj->cycle, obj->messageId, obj->crc);
 
 	// Copy only 5 bytes of header to flexrayData
-	uint8_t * headerPtr = (uint8_t *)&header;
+	uint8_t* headerPtr = (uint8_t*)&header;
 	memcpy(&flexrayData[2], headerPtr + 3, 5);
 
 	// FlexRay Frame Payload (0-254 bytes)
@@ -537,7 +534,7 @@ void write(pcapng_exporter::PcapngExporter exporter, FlexRayV6StartCycleEvent* o
 	set_header(header, headerFlags, len);
 
 	// Copy only 5 bytes of header to flexrayData
-	uint8_t * headerPtr = (uint8_t *)&header;
+	uint8_t* headerPtr = (uint8_t*)&header;
 	memcpy(&flexrayData[2], headerPtr + 3, 5);
 
 	// FlexRay Frame Payload (0-254 bytes)
@@ -566,7 +563,7 @@ void write(pcapng_exporter::PcapngExporter exporter, FlexRayV6Message* obj, uint
 	set_header(header, headerFlags, len, obj->cycle, obj->frameId, obj->headerCrc);
 
 	// Copy only 5 bytes of header to flexrayData
-	uint8_t * headerPtr = (uint8_t *)&header;
+	uint8_t* headerPtr = (uint8_t*)&header;
 	memcpy(&flexrayData[2], headerPtr + 3, 5);
 
 	// FlexRay Frame Payload (0-254 bytes)
@@ -596,7 +593,7 @@ void write(pcapng_exporter::PcapngExporter exporter, FlexRayVFrError* obj, uint6
 	set_header(header, headerFlags, 0, obj->cycle);
 
 	// Copy only 5 bytes of header to flexrayData
-	uint8_t * headerPtr = (uint8_t *)&header;
+	uint8_t* headerPtr = (uint8_t*)&header;
 	memcpy(&flexrayData[2], headerPtr + 3, 5);
 
 	/// FlexRay Frame Payload (0-254 bytes) -> no payload
@@ -649,7 +646,7 @@ void write(pcapng_exporter::PcapngExporter exporter, FlexRayVFrStartCycle* obj, 
 	set_header(header, headerFlags, len, obj->cycle);
 
 	// Copy only 5 bytes of header to flexrayData
-	uint8_t * headerPtr = (uint8_t *)&header;
+	uint8_t* headerPtr = (uint8_t*)&header;
 	memcpy(&flexrayData[2], headerPtr + 3, 5);
 
 	// FlexRay Frame Payload (0-254 bytes)
@@ -687,7 +684,7 @@ void write(pcapng_exporter::PcapngExporter exporter, FlexRayVFrReceiveMsg* obj, 
 	set_header(header, headerFlags, len, obj->cycle, obj->frameId, headerCrc);
 
 	// Copy only 5 bytes of header to flexrayData
-	uint8_t * headerPtr = (uint8_t *)&header;
+	uint8_t* headerPtr = (uint8_t*)&header;
 	memcpy(&flexrayData[2], headerPtr + 3, 5);
 
 	// FlexRay Frame Payload (0-254 bytes)
@@ -730,7 +727,7 @@ void write(pcapng_exporter::PcapngExporter exporter, FlexRayVFrReceiveMsgEx* obj
 	set_header(header, headerFlags, len, obj->cycle, obj->frameId, headerCrc);
 
 	// Copy only 5 bytes of header to flexrayData
-	uint8_t * headerPtr = (uint8_t *)&header;
+	uint8_t* headerPtr = (uint8_t*)&header;
 	std::vector<uint8_t> headerVec(headerPtr + 3, headerPtr + 8);
 	flexrayData.insert(flexrayData.end(), headerVec.begin(), headerVec.end());
 
@@ -759,6 +756,48 @@ uint64_t calculate_startdate(Vector::BLF::File* infile) {
 	ret *= 1000 * 1000;
 
 	return ret;
+}
+
+std::vector<std::string> split(const std::string& s, char delim) {
+	std::vector<std::string> result;
+	std::stringstream ss(s);
+	std::string item;
+
+	while (getline(ss, item, delim)) {
+		result.push_back(item);
+	}
+
+	return result;
+}
+
+std::optional<uint16_t> bus_type_to_linklayer(uint32_t bus_type) {
+	switch (bus_type)
+	{
+	case 0x01: return LINKTYPE_CAN;
+	case 0x05: return LINKTYPE_LIN;
+	case 0x07: return LINKTYPE_FLEXRAY;
+	case 0x0B: return LINKTYPE_ETHERNET;
+	default: return std::nullopt;
+	}
+}
+
+void configure(pcapng_exporter::PcapngExporter* exporter, AppText* obj) {
+	if (obj->source != AppText::Source::DbChannelInfo) {
+		// Does not contain channel mapping
+		return;
+	}
+	auto channel_id = (obj->reservedAppText1 >> 8) & 0xFF;
+	auto channel_link = bus_type_to_linklayer((obj->reservedAppText1 >> 16) & 0xFF);
+	auto db_channels = split(obj->text, ';');
+	if (db_channels.size() < 2 || !channel_link.has_value()) {
+		// Invalid mapping
+		return;
+	}
+	pcapng_exporter::channel_mapping mapping;
+	mapping.when.chl_id = channel_id;
+	mapping.when.chl_link = channel_link;
+	mapping.change.inf_name = db_channels[1];
+	exporter->mappings.push_back(mapping);
 }
 
 int main(int argc, char* argv[]) {
@@ -892,6 +931,14 @@ int main(int argc, char* argv[]) {
 
 		case ObjectType::FR_RCVMESSAGE_EX:
 			write(exporter, reinterpret_cast<FlexRayVFrReceiveMsgEx*>(ohb), startDate_ns);
+			break;
+
+		case ObjectType::APP_TEXT:
+			configure(&exporter, reinterpret_cast<AppText*>(ohb));
+			break;
+
+		default:
+
 			break;
 
 		}
