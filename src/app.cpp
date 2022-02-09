@@ -938,7 +938,9 @@ int main(int argc, char* argv[]) {
 			break;
 
 		default:
-
+			#ifdef DEBUG
+			std::cerr<<ohb->objectType<<" is not implemented."<<std::endl;
+			#endif
 			break;
 
 		}
