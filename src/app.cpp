@@ -800,6 +800,19 @@ void configure(pcapng_exporter::PcapngExporter* exporter, AppText* obj) {
 	exporter->mappings.push_back(mapping);
 }
 
+template<class LinBase>
+int write_lin_packet(
+	pcapng_exporter::PcapngExporter exporter,
+	LinBase *msg,
+	std::uint64_t offset)
+{
+	std::uint8_t bytes[10];
+	bytes[0] = msg->id;
+	memcpy(bytes+1, msg->data,8);
+	bytes[9] = msg->crc
+	return write_packet(exporter, LINKTYPE_LIN, msg, 10, bytes, offset);
+}
+
 int main(int argc, char* argv[]) {
 	args::ArgumentParser parser("This tool is intended for converting BLF files to plain PCAPNG files.");
 	parser.helpParams.showTerminator = false;
@@ -935,6 +948,10 @@ int main(int argc, char* argv[]) {
 
 		case ObjectType::APP_TEXT:
 			configure(&exporter, reinterpret_cast<AppText*>(ohb));
+			break;
+
+		case ObjectType::LIN_MESSAGE:
+			write_lin_packet(exporter, ohb);
 			break;
 
 		default:
