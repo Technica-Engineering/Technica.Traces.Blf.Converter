@@ -951,8 +951,13 @@ int main(int argc, char* argv[]) {
 			break;
 
 		case ObjectType::LIN_MESSAGE:
-			write_lin_packet(exporter, ohb);
+			write_lin_packet(exporter, reinterpret_cast<LinMessage*>(ohb), startDate_ns);
 			break;
+
+		case ObjectType::LIN_MESSAGE2:
+			write_lin_packet(exporter, reinterpret_cast<LinMessage2*>(ohb), startDate_ns);
+			break;
+
 
 		default:
 			#ifdef DEBUG
