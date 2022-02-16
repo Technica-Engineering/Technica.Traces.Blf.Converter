@@ -116,6 +116,37 @@ public:
 
 };
 
+template<class ObjectHeaderGeneric>
+std::uint64_t calculate_ts_res(ObjectHeaderGeneric *oh)
+{
+	uint64_t ts_resol = 0;
+	switch (oh->objectFlags) {
+	case ObjectHeader::ObjectFlags::TimeTenMics:
+		ts_resol = 100000;
+	case ObjectHeader::ObjectFlags::TimeOneNans:
+		ts_resol = NANOS_PER_SEC;
+		break;
+	default:
+		fprintf(stderr, "ERROR: The timestamp format is unknown (not 10us nor ns)!\n");
+		break;
+	}
+	return ts_resol;
+}
+
+template<class ObjectHeaderGeneric>
+pcapng_exporter::frame_header generate_header(
+	ObjectHeaderGeneric *oh,
+	std::uint64_t date_offset_ns)
+{
+	pcapng_exporter::frame_header header = pcapng_exporter::frame_header();
+	header.channel_id = oh->channel;
+	header.timestamp_resolution = calculate_ts_res(oh);
+	uint64_t ts = (NANOS_PER_SEC / header.timestamp_resolution) * oh->objectTimeStamp + date_offset_ns;
+	header.timestamp.tv_sec = ts / NANOS_PER_SEC;
+	header.timestamp.tv_nsec = ts % NANOS_PER_SEC;
+	return header;
+}
+
 template <class ObjHeader>
 int write_packet(
 	pcapng_exporter::PcapngExporter exporter,
@@ -800,17 +831,20 @@ void configure(pcapng_exporter::PcapngExporter* exporter, AppText* obj) {
 	exporter->mappings.push_back(mapping);
 }
 
-template<class LinBase>
-int write_lin_packet(
-	pcapng_exporter::PcapngExporter exporter,
-	LinBase *msg,
-	std::uint64_t offset)
+template<class LinMessageBase>
+int write_lin_message(
+	pcapng_exporter::PcapngExporter writer,
+	LinMessageBase *msg,
+	uint64_t date_offset_ns)
 {
-	std::uint8_t bytes[10];
-	bytes[0] = msg->id;
-	memcpy(bytes+1, msg->data,8);
-	bytes[9] = msg->crc
-	return write_packet(exporter, LINKTYPE_LIN, msg, 10, bytes, offset);
+	pcapng_exporter::frame_header header = generate_header(msg, date_offset_ns);
+	if (header.timestamp_resolution == 0) return -3;
+	lin_frame frame = lin_frame();
+	frame.pid = msg->id;
+	memcpy(frame.data, &(msg->data), frame.payload_length);
+	frame.checksum = msg->crc;
+	writer.write_lin(header, frame);
+	return 0;
 }
 
 int main(int argc, char* argv[]) {
@@ -951,11 +985,11 @@ int main(int argc, char* argv[]) {
 			break;
 
 		case ObjectType::LIN_MESSAGE:
-			write_lin_packet(exporter, reinterpret_cast<LinMessage*>(ohb), startDate_ns);
+			write_lin_message(exporter, reinterpret_cast<LinMessage*>(ohb), startDate_ns);
 			break;
 
 		case ObjectType::LIN_MESSAGE2:
-			write_lin_packet(exporter, reinterpret_cast<LinMessage2*>(ohb), startDate_ns);
+			write_lin_message(exporter, reinterpret_cast<LinMessage2*>(ohb), startDate_ns);
 			break;
 
 
