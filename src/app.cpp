@@ -831,6 +831,21 @@ void configure(pcapng_exporter::PcapngExporter* exporter, AppText* obj) {
 	exporter->mappings.push_back(mapping);
 }
 
+template<class LinErrorBase>
+int write_lin_error(
+	pcapng_exporter::PcapngExporter writer,
+	LinErrorBase *lerr,
+	std::uint8_t errors,
+	uint64_t date_offset_ns)
+{
+	pcapng_exporter::frame_header header = generate_header(lerr, date_offset_ns);
+	if (header.timestamp_resolution == 0) return -3;
+	lin_frame frame = lin_frame();
+	frame.errors = errors;
+	writer.write_lin(header, frame);
+	return 0;
+}
+
 template<class LinMessageBase>
 int write_lin_message(
 	pcapng_exporter::PcapngExporter writer,
@@ -898,6 +913,7 @@ int main(int argc, char* argv[]) {
 			break;
 		}
 		/* Object */
+		std::uint8_t errors = 0;
 		switch (ohb->objectType) {
 
 		case ObjectType::CAN_MESSAGE:
@@ -992,10 +1008,54 @@ int main(int argc, char* argv[]) {
 			write_lin_message(exporter, reinterpret_cast<LinMessage2*>(ohb), startDate_ns);
 			break;
 
+		case ObjectType::LIN_CRC_ERROR:
+			errors = LIN_ERROR_CHECKSUM;
+			write_lin_error(exporter, reinterpret_cast<LinCrcError*>(ohb), errors, startDate_ns);
+			break;
 
+		case ObjectType::LIN_CRC_ERROR2:
+			errors = LIN_ERROR_CHECKSUM;
+			write_lin_error(exporter, reinterpret_cast<LinCrcError2*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_RCV_ERROR:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinReceiveError*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_RCV_ERROR2:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinReceiveError2*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_SLV_TIMEOUT:
+			errors = LIN_ERROR_NOSLAVE;
+			write_lin_error(exporter, reinterpret_cast<LinSlaveTimeout*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_SND_ERROR:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinSendError*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_SND_ERROR2:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinSendError2*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_SYN_ERROR:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinSyncError*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_SYN_ERROR2:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinSyncError2*>(ohb), errors, startDate_ns);
+			break;
+			
 		default:
 			#ifdef DEBUG
-			std::cerr<<ohb->objectType<<" is not implemented."<<std::endl;
+			std::cerr<<(std::uint32_t)(ohb->objectType)<<" is not implemented."<<std::endl;
 			#endif
 			break;
 
