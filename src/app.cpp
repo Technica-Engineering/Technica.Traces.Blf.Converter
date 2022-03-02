@@ -116,6 +116,37 @@ public:
 
 };
 
+template<class ObjectHeaderGeneric>
+std::uint64_t calculate_ts_res(ObjectHeaderGeneric *oh)
+{
+	uint64_t ts_resol = 0;
+	switch (oh->objectFlags) {
+	case ObjectHeader::ObjectFlags::TimeTenMics:
+		ts_resol = 100000;
+	case ObjectHeader::ObjectFlags::TimeOneNans:
+		ts_resol = NANOS_PER_SEC;
+		break;
+	default:
+		fprintf(stderr, "ERROR: The timestamp format is unknown (not 10us nor ns)!\n");
+		break;
+	}
+	return ts_resol;
+}
+
+template<class ObjectHeaderGeneric>
+pcapng_exporter::frame_header generate_header(
+	ObjectHeaderGeneric *oh,
+	std::uint64_t date_offset_ns)
+{
+	pcapng_exporter::frame_header header = pcapng_exporter::frame_header();
+	header.channel_id = oh->channel;
+	header.timestamp_resolution = calculate_ts_res(oh);
+	uint64_t ts = (NANOS_PER_SEC / header.timestamp_resolution) * oh->objectTimeStamp + date_offset_ns;
+	header.timestamp.tv_sec = ts / NANOS_PER_SEC;
+	header.timestamp.tv_nsec = ts % NANOS_PER_SEC;
+	return header;
+}
+
 template <class ObjHeader>
 int write_packet(
 	pcapng_exporter::PcapngExporter exporter,
@@ -134,26 +165,15 @@ int write_packet(
 	memcpy(name_str, name.c_str(), sizeof(char) * std::min((size_t)255, name.length()));
 	interface.name = name_str;
 
-	uint64_t ts_resol = 0;
-	switch (oh->objectFlags) {
-	case ObjectHeader::ObjectFlags::TimeTenMics:
-		ts_resol = 100000;
-	case ObjectHeader::ObjectFlags::TimeOneNans:
-		ts_resol = NANOS_PER_SEC;
-		break;
-	default:
-		fprintf(stderr, "ERROR: The timestamp format is unknown (not 10us nor ns)!\n");
-		return -3;
-	}
+	uint64_t ts_resol = calculate_ts_res(oh);
+	if (ts_resol == 0) return -3;
+
 	interface.timestamp_resolution = ts_resol;
 
 	light_packet_header header = { 0 };
-
 	uint64_t ts = (NANOS_PER_SEC / ts_resol) * oh->objectTimeStamp + date_offset_ns;
-
 	header.timestamp.tv_sec = ts / NANOS_PER_SEC;
 	header.timestamp.tv_nsec = ts % NANOS_PER_SEC;
-
 	header.captured_length = length;
 	header.original_length = length;
 
@@ -800,6 +820,37 @@ void configure(pcapng_exporter::PcapngExporter* exporter, AppText* obj) {
 	exporter->mappings.push_back(mapping);
 }
 
+template<class LinErrorBase>
+int write_lin_error(
+	pcapng_exporter::PcapngExporter writer,
+	LinErrorBase *lerr,
+	std::uint8_t errors,
+	uint64_t date_offset_ns)
+{
+	pcapng_exporter::frame_header header = generate_header(lerr, date_offset_ns);
+	if (header.timestamp_resolution == 0) return -3;
+	lin_frame frame = lin_frame();
+	frame.errors = errors;
+	writer.write_lin(header, frame);
+	return 0;
+}
+
+template<class LinMessageBase>
+int write_lin_message(
+	pcapng_exporter::PcapngExporter writer,
+	LinMessageBase *msg,
+	uint64_t date_offset_ns)
+{
+	pcapng_exporter::frame_header header = generate_header(msg, date_offset_ns);
+	if (header.timestamp_resolution == 0) return -3;
+	lin_frame frame = lin_frame();
+	frame.pid = msg->id;
+	memcpy(frame.data, &(msg->data), frame.payload_length);
+	frame.checksum = msg->crc;
+	writer.write_lin(header, frame);
+	return 0;
+}
+
 int main(int argc, char* argv[]) {
 	args::ArgumentParser parser("This tool is intended for converting BLF files to plain PCAPNG files.");
 	parser.helpParams.showTerminator = false;
@@ -851,6 +902,7 @@ int main(int argc, char* argv[]) {
 			break;
 		}
 		/* Object */
+		std::uint8_t errors = 0;
 		switch (ohb->objectType) {
 
 		case ObjectType::CAN_MESSAGE:
@@ -937,8 +989,63 @@ int main(int argc, char* argv[]) {
 			configure(&exporter, reinterpret_cast<AppText*>(ohb));
 			break;
 
-		default:
+		case ObjectType::LIN_MESSAGE:
+			write_lin_message(exporter, reinterpret_cast<LinMessage*>(ohb), startDate_ns);
+			break;
 
+		case ObjectType::LIN_MESSAGE2:
+			write_lin_message(exporter, reinterpret_cast<LinMessage2*>(ohb), startDate_ns);
+			break;
+
+		case ObjectType::LIN_CRC_ERROR:
+			errors = LIN_ERROR_CHECKSUM;
+			write_lin_error(exporter, reinterpret_cast<LinCrcError*>(ohb), errors, startDate_ns);
+			break;
+
+		case ObjectType::LIN_CRC_ERROR2:
+			errors = LIN_ERROR_CHECKSUM;
+			write_lin_error(exporter, reinterpret_cast<LinCrcError2*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_RCV_ERROR:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinReceiveError*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_RCV_ERROR2:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinReceiveError2*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_SLV_TIMEOUT:
+			errors = LIN_ERROR_NOSLAVE;
+			write_lin_error(exporter, reinterpret_cast<LinSlaveTimeout*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_SND_ERROR:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinSendError*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_SND_ERROR2:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinSendError2*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_SYN_ERROR:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinSyncError*>(ohb), errors, startDate_ns);
+			break;
+			
+		case ObjectType::LIN_SYN_ERROR2:
+			errors = LIN_ERROR_FRAMING;
+			write_lin_error(exporter, reinterpret_cast<LinSyncError2*>(ohb), errors, startDate_ns);
+			break;
+			
+		default:
+			#ifdef DEBUG
+			std::cerr<<(std::uint32_t)(ohb->objectType)<<" is not implemented."<<std::endl;
+			#endif
 			break;
 
 		}
