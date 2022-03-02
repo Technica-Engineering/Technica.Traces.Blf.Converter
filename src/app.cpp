@@ -165,26 +165,15 @@ int write_packet(
 	memcpy(name_str, name.c_str(), sizeof(char) * std::min((size_t)255, name.length()));
 	interface.name = name_str;
 
-	uint64_t ts_resol = 0;
-	switch (oh->objectFlags) {
-	case ObjectHeader::ObjectFlags::TimeTenMics:
-		ts_resol = 100000;
-	case ObjectHeader::ObjectFlags::TimeOneNans:
-		ts_resol = NANOS_PER_SEC;
-		break;
-	default:
-		fprintf(stderr, "ERROR: The timestamp format is unknown (not 10us nor ns)!\n");
-		return -3;
-	}
+	uint64_t ts_resol = calculate_ts_res(oh);
+	if (ts_resol == 0) return -3;
+
 	interface.timestamp_resolution = ts_resol;
 
 	light_packet_header header = { 0 };
-
 	uint64_t ts = (NANOS_PER_SEC / ts_resol) * oh->objectTimeStamp + date_offset_ns;
-
 	header.timestamp.tv_sec = ts / NANOS_PER_SEC;
 	header.timestamp.tv_nsec = ts % NANOS_PER_SEC;
-
 	header.captured_length = length;
 	header.original_length = length;
 
