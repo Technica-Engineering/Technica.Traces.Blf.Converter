@@ -845,6 +845,7 @@ int write_lin_message(
 	if (header.timestamp_resolution == 0) return -3;
 	lin_frame frame = lin_frame();
 	frame.pid = msg->id;
+	frame.payload_length = (std::uint8_t)(msg->data.size());
 	memcpy(frame.data, &(msg->data), frame.payload_length);
 	frame.checksum = msg->crc;
 	writer.write_lin(header, frame);
