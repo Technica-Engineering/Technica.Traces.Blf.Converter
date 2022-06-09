@@ -16,10 +16,12 @@ include(cmake/pcapng.cmake)
 include(cmake/zlib.cmake)
 include(cmake/pcapng_exporter.cmake)
 include(cmake/args.cmake)
+include(cmake/tinyxml2.cmake)
+
 add_subdirectory(vector_blf)
 
-add_executable(blf_converter "src/app.cpp" "src/endianness.h")
-target_link_libraries(blf_converter light_pcapng pcapng_exporter args Vector_BLF)
+add_executable(blf_converter "src/app.cpp" "src/channels.cpp")
+target_link_libraries(blf_converter light_pcapng pcapng_exporter args tinyxml2 Vector_BLF)
 
 install(TARGETS blf_converter COMPONENT blf_converter)
 
