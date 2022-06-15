@@ -11,15 +11,16 @@
 #include <iomanip>
 #include <iostream>
 #include <locale>
-#include <map>
 
 #include <Vector/BLF.h>
 #include <light_pcapng_ext.h>
 #include "endianness.h"
-#include "pcapng_exporter/lin.h"
-#include "pcapng_exporter/linktype.h"
-#include "pcapng_exporter/pcapng_exporter.hpp"
+#include <pcapng_exporter/lin.h>
+#include <pcapng_exporter/linktype.h>
+#include <pcapng_exporter/pcapng_exporter.hpp>
 #include <args.hxx>
+
+#include "channels.hpp"
 
 using namespace Vector::BLF;
 
@@ -117,7 +118,7 @@ public:
 };
 
 template<class ObjectHeaderGeneric>
-std::uint64_t calculate_ts_res(ObjectHeaderGeneric *oh)
+std::uint64_t calculate_ts_res(ObjectHeaderGeneric* oh)
 {
 	uint64_t ts_resol = 0;
 	switch (oh->objectFlags) {
@@ -135,7 +136,7 @@ std::uint64_t calculate_ts_res(ObjectHeaderGeneric *oh)
 
 template<class ObjectHeaderGeneric>
 pcapng_exporter::frame_header generate_header(
-	ObjectHeaderGeneric *oh,
+	ObjectHeaderGeneric* oh,
 	std::uint64_t date_offset_ns)
 {
 	pcapng_exporter::frame_header header = pcapng_exporter::frame_header();
@@ -155,12 +156,13 @@ int write_packet(
 	uint32_t length,
 	const uint8_t* data,
 	uint64_t date_offset_ns,
-	uint32_t flags = 0
+	uint32_t flags = 0,
+	uint32_t hw_channel = 0
 ) {
-
 	light_packet_interface interface = { 0 };
 	interface.link_type = link_type;
-	std::string name = std::to_string(oh->channel);
+	auto channel_id = 100000 * hw_channel + oh->channel;
+	std::string name = std::to_string(channel_id);
 	char name_str[256] = { 0 };
 	memcpy(name_str, name.c_str(), sizeof(char) * std::min((size_t)255, name.length()));
 	interface.name = name_str;
@@ -177,7 +179,8 @@ int write_packet(
 	header.captured_length = length;
 	header.original_length = length;
 
-	exporter.write_packet(oh->channel, interface, header, data);
+	exporter.write_packet(channel_id, interface, header, data);
+
 	return 0;
 }
 
@@ -312,7 +315,7 @@ void write(pcapng_exporter::PcapngExporter exporter, EthernetFrame* obj, uint64_
 	eth.push_back((uint8_t)obj->type);
 
 	eth.insert(eth.end(), obj->payLoad.begin(), obj->payLoad.end());
-
+	
 	write_packet(exporter, LINKTYPE_ETHERNET, obj, eth.size(), eth.data(), date_offset_ns, flags);
 }
 
@@ -337,8 +340,7 @@ void write_ethernet_frame(pcapng_exporter::PcapngExporter exporter, TEthernetFra
 		break;
 	}
 
-	write_packet(exporter, LINKTYPE_ETHERNET, obj, (uint32_t)eth.size(), eth.data(), date_offset_ns, flags);
-
+	write_packet(exporter, LINKTYPE_ETHERNET, obj, (uint32_t)eth.size(), eth.data(), date_offset_ns, flags, obj->hardwareChannel);
 }
 
 // ETHERNET_FRAME_EX = 120
@@ -778,52 +780,10 @@ uint64_t calculate_startdate(Vector::BLF::File* infile) {
 	return ret;
 }
 
-std::vector<std::string> split(const std::string& s, char delim) {
-	std::vector<std::string> result;
-	std::stringstream ss(s);
-	std::string item;
-
-	while (getline(ss, item, delim)) {
-		result.push_back(item);
-	}
-
-	return result;
-}
-
-std::optional<uint16_t> bus_type_to_linklayer(uint32_t bus_type) {
-	switch (bus_type)
-	{
-	case 0x01: return LINKTYPE_CAN;
-	case 0x05: return LINKTYPE_LIN;
-	case 0x07: return LINKTYPE_FLEXRAY;
-	case 0x0B: return LINKTYPE_ETHERNET;
-	default: return std::nullopt;
-	}
-}
-
-void configure(pcapng_exporter::PcapngExporter* exporter, AppText* obj) {
-	if (obj->source != AppText::Source::DbChannelInfo) {
-		// Does not contain channel mapping
-		return;
-	}
-	auto channel_id = (obj->reservedAppText1 >> 8) & 0xFF;
-	auto channel_link = bus_type_to_linklayer((obj->reservedAppText1 >> 16) & 0xFF);
-	auto db_channels = split(obj->text, ';');
-	if (db_channels.size() < 2 || !channel_link.has_value()) {
-		// Invalid mapping
-		return;
-	}
-	pcapng_exporter::channel_mapping mapping;
-	mapping.when.chl_id = channel_id;
-	mapping.when.chl_link = channel_link;
-	mapping.change.inf_name = db_channels[1];
-	exporter->mappings.push_back(mapping);
-}
-
 template<class LinErrorBase>
 int write_lin_error(
 	pcapng_exporter::PcapngExporter writer,
-	LinErrorBase *lerr,
+	LinErrorBase* lerr,
 	std::uint8_t errors,
 	uint64_t date_offset_ns)
 {
@@ -838,7 +798,7 @@ int write_lin_error(
 template<class LinMessageBase>
 int write_lin_message(
 	pcapng_exporter::PcapngExporter writer,
-	LinMessageBase *msg,
+	LinMessageBase* msg,
 	uint64_t date_offset_ns)
 {
 	pcapng_exporter::frame_header header = generate_header(msg, date_offset_ns);
@@ -987,7 +947,7 @@ int main(int argc, char* argv[]) {
 			break;
 
 		case ObjectType::APP_TEXT:
-			configure(&exporter, reinterpret_cast<AppText*>(ohb));
+			configure_channels(&exporter, reinterpret_cast<AppText*>(ohb));
 			break;
 
 		case ObjectType::LIN_MESSAGE:
@@ -1007,46 +967,46 @@ int main(int argc, char* argv[]) {
 			errors = LIN_ERROR_CHECKSUM;
 			write_lin_error(exporter, reinterpret_cast<LinCrcError2*>(ohb), errors, startDate_ns);
 			break;
-			
+
 		case ObjectType::LIN_RCV_ERROR:
 			errors = LIN_ERROR_FRAMING;
 			write_lin_error(exporter, reinterpret_cast<LinReceiveError*>(ohb), errors, startDate_ns);
 			break;
-			
+
 		case ObjectType::LIN_RCV_ERROR2:
 			errors = LIN_ERROR_FRAMING;
 			write_lin_error(exporter, reinterpret_cast<LinReceiveError2*>(ohb), errors, startDate_ns);
 			break;
-			
+
 		case ObjectType::LIN_SLV_TIMEOUT:
 			errors = LIN_ERROR_NOSLAVE;
 			write_lin_error(exporter, reinterpret_cast<LinSlaveTimeout*>(ohb), errors, startDate_ns);
 			break;
-			
+
 		case ObjectType::LIN_SND_ERROR:
 			errors = LIN_ERROR_FRAMING;
 			write_lin_error(exporter, reinterpret_cast<LinSendError*>(ohb), errors, startDate_ns);
 			break;
-			
+
 		case ObjectType::LIN_SND_ERROR2:
 			errors = LIN_ERROR_FRAMING;
 			write_lin_error(exporter, reinterpret_cast<LinSendError2*>(ohb), errors, startDate_ns);
 			break;
-			
+
 		case ObjectType::LIN_SYN_ERROR:
 			errors = LIN_ERROR_FRAMING;
 			write_lin_error(exporter, reinterpret_cast<LinSyncError*>(ohb), errors, startDate_ns);
 			break;
-			
+
 		case ObjectType::LIN_SYN_ERROR2:
 			errors = LIN_ERROR_FRAMING;
 			write_lin_error(exporter, reinterpret_cast<LinSyncError2*>(ohb), errors, startDate_ns);
 			break;
-			
+
 		default:
-			#ifdef DEBUG
-			std::cerr<<(std::uint32_t)(ohb->objectType)<<" is not implemented."<<std::endl;
-			#endif
+#ifdef DEBUG
+			std::cerr << (std::uint32_t)(ohb->objectType) << " is not implemented." << std::endl;
+#endif
 			break;
 
 		}
