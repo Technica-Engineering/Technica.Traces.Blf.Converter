@@ -124,6 +124,7 @@ std::uint64_t calculate_ts_res(ObjectHeaderGeneric* oh)
 	switch (oh->objectFlags) {
 	case ObjectHeader::ObjectFlags::TimeTenMics:
 		ts_resol = 100000;
+		break;
 	case ObjectHeader::ObjectFlags::TimeOneNans:
 		ts_resol = NANOS_PER_SEC;
 		break;
@@ -170,7 +171,8 @@ int write_packet(
 	uint64_t ts_resol = calculate_ts_res(oh);
 	if (ts_resol == 0) return -3;
 
-	interface.timestamp_resolution = ts_resol;
+	/* since we convert to NS, we need to always set the output to NS */
+	interface.timestamp_resolution = NANOS_PER_SEC;
 
 	light_packet_header header = { 0 };
 	uint64_t ts = (NANOS_PER_SEC / ts_resol) * oh->objectTimeStamp + date_offset_ns;
