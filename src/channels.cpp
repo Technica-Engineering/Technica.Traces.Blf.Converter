@@ -97,7 +97,7 @@ void configure_xml_channel(pcapng_exporter::PcapngExporter* exporter, tinyxml2::
 				auto value = pair.back();
 
 				if (key == "name") {
-					mapping.change.inf_name = channel_name + "." + value;
+					mapping.change.inf_name = channel_name + "::" + value;
 				}
 				if (key == "hwchannel") {
 					auto hwchannel = std::stoi(value);
