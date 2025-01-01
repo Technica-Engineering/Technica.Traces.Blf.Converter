@@ -180,6 +180,7 @@ int write_packet(
 	header.timestamp.tv_nsec = ts % NANOS_PER_SEC;
 	header.captured_length = length;
 	header.original_length = length;
+	header.flags = flags;
 
 	exporter.write_packet(channel_id, interface, header, data);
 
