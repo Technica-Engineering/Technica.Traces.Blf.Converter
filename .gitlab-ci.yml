@@ -20,4 +20,4 @@ linux:
   extends: .test
   tags:
     - docker
-  image: rikorose/gcc-cmake
+  image: ubuntu-22.04
