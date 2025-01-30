@@ -92,6 +92,10 @@ public:
 		uint8_t masked = *(raw + 5) & 0xFD;
 		*(raw + 5) = masked | value << 1;
 	}
+	
+	void set_fdf() {
+		*(raw + 5) |=  0x04;
+	}
 
 	uint8_t len() {
 		return *(raw + 4);
@@ -244,6 +248,8 @@ void write(pcapng_exporter::PcapngExporter exporter, CanFdMessage* obj, uint64_t
 
 	can.rtr(HAS_FLAG(obj->flags, 7));
 
+	// https://www.tcpdump.org/linktypes/LINKTYPE_CAN_SOCKETCAN.html : set CANFD_FDF flags
+	can.set_fdf();
 	can.esi(HAS_FLAG(obj->canFdFlags, 2));
 	can.brs(HAS_FLAG(obj->canFdFlags, 1));
 
@@ -264,6 +270,8 @@ void write(pcapng_exporter::PcapngExporter exporter, CanFdMessage64* obj, uint64
 
 	can.rtr(HAS_FLAG(obj->flags, 4));
 
+	// https://www.tcpdump.org/linktypes/LINKTYPE_CAN_SOCKETCAN.html : set CANFD_FDF flags
+	can.set_fdf();
 	can.esi(HAS_FLAG(obj->flags, 14));
 	can.brs(HAS_FLAG(obj->flags, 13));
 
