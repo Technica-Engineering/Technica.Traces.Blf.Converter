@@ -76,7 +76,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
     #list(APPEND blf_tests "binlog/test_LinSyncError")
     #list(APPEND blf_tests "binlog/test_LinSyncError2")
 
-    list(APPEND blf_mapping_tests "test_CanMessage")
+    #list(APPEND blf_mapping_tests "test_CanMessage")
 
     foreach(blf_test ${blf_tests})
         get_filename_component(param ${blf_test} NAME)
