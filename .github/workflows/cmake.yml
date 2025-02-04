@@ -35,8 +35,9 @@ jobs:
 
     - name: Test
       working-directory: build
-      run: ctest -C ${{env.BUILD_TYPE}} --output-on-failure
-
+      run: |
+        ctest -C ${{env.BUILD_TYPE}} --output-on-failure
+        git diff --exit-code
         
     - name: 'Upload Artifacts'
       uses: actions/upload-artifact@v4
