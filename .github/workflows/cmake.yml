@@ -21,9 +21,9 @@ jobs:
     - name: Checkout submodules
       run: git submodule update --init --recursive
     
-    - name: Install (ubuntu)
+    - name: Set Git config for autocrlf (ubuntu)
       if: matrix.os == 'ubuntu-22.04'
-      run: sudo apt-get update
+      run: git config --global core.autocrlf false
     
     - name: Create Build Environment
       run: cmake -E make_directory build
