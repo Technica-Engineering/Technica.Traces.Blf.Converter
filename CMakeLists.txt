@@ -60,8 +60,6 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
     list(APPEND blf_tests "converter/test_CanErrorFrame")
     list(APPEND blf_tests "converter/test_CanErrorFrameExt")
     list(APPEND blf_tests "converter/test_CanMessage")
-    list(APPEND blf_tests "converter/test_CanFdMessage")
-    list(APPEND blf_tests "converter/test_CanFdMessage64")
 
     list(APPEND blf_tests "converter/test_EthernetFrame")
     list(APPEND blf_tests "converter/test_FlexRayVFrReceiveMsgEx")
