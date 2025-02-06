@@ -781,7 +781,9 @@ uint64_t calculate_startdate(Vector::BLF::File* infile) {
 
 	time_t ret = mktime(&tms);
 	if (ret < 0 )
+	{
 		return 0;
+	}
 	
 	ret *= 1000;
 	ret += startTime.milliseconds;
