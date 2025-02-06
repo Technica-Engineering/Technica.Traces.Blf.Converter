@@ -187,6 +187,22 @@ int write_packet(
 
 	exporter.write_packet(channel_id, interface, header, data);
 
+	std::cout << "********************* \n interface.timestamp_resolution : \n";
+	std::cout << interface.timestamp_resolution;
+	std::cout << "\n ts_resol : \n";
+	std::cout << ts_resol;
+	std::cout << "\n relative_timestamp : \n";
+	std::cout << relative_timestamp;
+	std::cout << "\n relative_timestamp after mask : \n";
+	std::cout << relative_timestamp & TIMESTAMP_MASK;
+	std::cout << "\n date_offset_ns : \n";
+	std::cout << date_offset_ns;
+	std::cout << "\n date_offset_ns after mask : \n";
+	std::cout << date_offset_ns & TIMESTAMP_MASK;
+	std::cout << "\n header.timestamp.tv_sec : \n";
+	std::cout << header.timestamp.tv_sec;
+	std::cout << "\n header.timestamp.tv_nsec : \n";
+	std::cout << header.timestamp.tv_nsec;
 	return 0;
 }
 
