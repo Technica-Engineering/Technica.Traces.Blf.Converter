@@ -245,6 +245,8 @@ void write_can_error(pcapng_exporter::PcapngExporter exporter, CanError* obj, ui
 // CAN_ERROR = 2
 void write(pcapng_exporter::PcapngExporter exporter, CanErrorFrame* obj, uint64_t date_offset_ns) {
 
+	std::cout << "CAN_ERROR = 2";
+	std::cout << date_offset_ns;
 	write_can_error(exporter, obj, date_offset_ns);
 }
 
@@ -794,10 +796,33 @@ uint64_t calculate_startdate(Vector::BLF::File* infile) {
 	tms.tm_sec = startTime.second;
 
 	time_t ret = mktime(&tms);
+	if (ret < 0 )
+		return 0;
+	
+	std::cout << "********************* \n tms.tm_year \n";
+	std::cout << tms.tm_year;
+	std::cout << "\n tms.tm_mon \n";
+	std::cout << tms.tm_mon;
+	std::cout << "\n tms.tm_mday \n";
+	std::cout << tms.tm_mday;
+	std::cout << "\n tms.tm_hour \n";
+	std::cout << tms.tm_hour;
+	std::cout << "\n tms.tm_min \n";
+	std::cout << tms.tm_min;
+	std::cout << "\n tms.tm_sec \n";
+	std::cout << tms.tm_sec;
+	std::cout << "\n ret : \n";
+	std::cout << ret;
 
 	ret *= 1000;
+	std::cout << "\n ret 1 : \n";
+	std::cout << ret;
 	ret += startTime.milliseconds;
+	std::cout << "\n ret 2 : \n";
+	std::cout << ret;
 	ret *= 1000 * 1000;
+	std::cout << "\n ret 3 : \n";
+	std::cout << ret;
 
 	return ret;
 }
@@ -870,6 +895,8 @@ int main(int argc, char* argv[]) {
 	pcapng_exporter::PcapngExporter exporter = pcapng_exporter::PcapngExporter(args::get(outarg), maparg.Get());
 
 	uint64_t startDate_ns = calculate_startdate(&infile);
+	std::cout << "main";
+	std::cout << startDate_ns;
 
 	while (infile.good()) {
 		ObjectHeaderBase* ohb = nullptr;
