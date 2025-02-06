@@ -145,7 +145,7 @@ pcapng_exporter::frame_header generate_header(
 	header.channel_id = oh->channel;
 	header.timestamp_resolution = calculate_ts_res(oh);
 	uint64_t relative_timestamp = (NANOS_PER_SEC / header.timestamp_resolution) * oh->objectTimeStamp;
-	uint64_t ts = relative_timestamp & TIMESTAMP_MASK + date_offset_ns & TIMESTAMP_MASK;
+	uint64_t ts = (relative_timestamp & TIMESTAMP_MASK) + (date_offset_ns & TIMESTAMP_MASK);
 	header.timestamp.tv_sec = ts / NANOS_PER_SEC;
 	header.timestamp.tv_nsec = ts % NANOS_PER_SEC;
 	return header;
@@ -178,7 +178,7 @@ int write_packet(
 
 	light_packet_header header = { 0 };
 	uint64_t relative_timestamp = (NANOS_PER_SEC / ts_resol) * oh->objectTimeStamp;
-	uint64_t ts = relative_timestamp & TIMESTAMP_MASK + date_offset_ns & TIMESTAMP_MASK;
+	uint64_t ts = (relative_timestamp & TIMESTAMP_MASK) + (date_offset_ns & TIMESTAMP_MASK);
 	header.timestamp.tv_sec = ts / NANOS_PER_SEC;
 	header.timestamp.tv_nsec = ts % NANOS_PER_SEC;
 	header.captured_length = length;
@@ -194,11 +194,11 @@ int write_packet(
 	std::cout << "\n relative_timestamp : \n";
 	std::cout << relative_timestamp;
 	std::cout << "\n relative_timestamp after mask : \n";
-	std::cout << relative_timestamp & TIMESTAMP_MASK;
+	std::cout << (relative_timestamp & TIMESTAMP_MASK);
 	std::cout << "\n date_offset_ns : \n";
 	std::cout << date_offset_ns;
 	std::cout << "\n date_offset_ns after mask : \n";
-	std::cout << date_offset_ns & TIMESTAMP_MASK;
+	std::cout << (date_offset_ns & TIMESTAMP_MASK);
 	std::cout << "\n header.timestamp.tv_sec : \n";
 	std::cout << header.timestamp.tv_sec;
 	std::cout << "\n header.timestamp.tv_nsec : \n";
