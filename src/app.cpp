@@ -27,6 +27,8 @@ using namespace Vector::BLF;
 #define HAS_FLAG(var,pos) ((var) & (1<<(pos)))
 
 #define NANOS_PER_SEC 1000000000
+// Mask used to avoid overflow issues with Timestamp
+#define TIMESTAMP_MASK 0x7fffffffffffffff
 
 #define DIR_IN    1
 #define DIR_OUT   2
@@ -143,7 +145,9 @@ pcapng_exporter::frame_header generate_header(
 	pcapng_exporter::frame_header header = pcapng_exporter::frame_header();
 	header.channel_id = oh->channel;
 	header.timestamp_resolution = calculate_ts_res(oh);
-	uint64_t ts = (NANOS_PER_SEC / header.timestamp_resolution) * oh->objectTimeStamp + date_offset_ns;
+	uint64_t relative_timestamp = (NANOS_PER_SEC / header.timestamp_resolution) * oh->objectTimeStamp;
+	// To avoid overflow issues that are handled differently in different OS
+	uint64_t ts = (relative_timestamp & TIMESTAMP_MASK) + (date_offset_ns & TIMESTAMP_MASK);
 	header.timestamp.tv_sec = ts / NANOS_PER_SEC;
 	header.timestamp.tv_nsec = ts % NANOS_PER_SEC;
 	return header;
@@ -175,7 +179,8 @@ int write_packet(
 	interface.timestamp_resolution = NANOS_PER_SEC;
 
 	light_packet_header header = { 0 };
-	uint64_t ts = (NANOS_PER_SEC / ts_resol) * oh->objectTimeStamp + date_offset_ns;
+	uint64_t relative_timestamp = (NANOS_PER_SEC / ts_resol) * oh->objectTimeStamp;
+	uint64_t ts = (relative_timestamp & TIMESTAMP_MASK) + (date_offset_ns & TIMESTAMP_MASK);
 	header.timestamp.tv_sec = ts / NANOS_PER_SEC;
 	header.timestamp.tv_nsec = ts % NANOS_PER_SEC;
 	header.captured_length = length;
@@ -775,7 +780,11 @@ uint64_t calculate_startdate(Vector::BLF::File* infile) {
 	tms.tm_sec = startTime.second;
 
 	time_t ret = mktime(&tms);
-
+	if (ret < 0 )
+	{
+		return 0;
+	}
+	
 	ret *= 1000;
 	ret += startTime.milliseconds;
 	ret *= 1000 * 1000;
