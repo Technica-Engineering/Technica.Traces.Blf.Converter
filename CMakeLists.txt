@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(blf_converter CXX)
+project(blf_converter)
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
     if(NOT CMAKE_BUILD_TYPE)
@@ -12,6 +12,7 @@ endif()
 
 # Configuration
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include(cmake/pcapng.cmake)
 include(cmake/zlib.cmake)
 include(cmake/pcapng_exporter.cmake)
