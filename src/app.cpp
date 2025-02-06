@@ -27,6 +27,7 @@ using namespace Vector::BLF;
 #define HAS_FLAG(var,pos) ((var) & (1<<(pos)))
 
 #define NANOS_PER_SEC 1000000000
+// Mask used to avoid overflow issues with Timestamp
 #define TIMESTAMP_MASK 0x7fffffffffffffff
 
 #define DIR_IN    1
@@ -145,6 +146,7 @@ pcapng_exporter::frame_header generate_header(
 	header.channel_id = oh->channel;
 	header.timestamp_resolution = calculate_ts_res(oh);
 	uint64_t relative_timestamp = (NANOS_PER_SEC / header.timestamp_resolution) * oh->objectTimeStamp;
+	// To avoid overflow issues that are handled differently in different OS
 	uint64_t ts = (relative_timestamp & TIMESTAMP_MASK) + (date_offset_ns & TIMESTAMP_MASK);
 	header.timestamp.tv_sec = ts / NANOS_PER_SEC;
 	header.timestamp.tv_nsec = ts % NANOS_PER_SEC;
@@ -187,22 +189,6 @@ int write_packet(
 
 	exporter.write_packet(channel_id, interface, header, data);
 
-	std::cout << "********************* \n interface.timestamp_resolution : \n";
-	std::cout << interface.timestamp_resolution;
-	std::cout << "\n ts_resol : \n";
-	std::cout << ts_resol;
-	std::cout << "\n relative_timestamp : \n";
-	std::cout << relative_timestamp;
-	std::cout << "\n relative_timestamp after mask : \n";
-	std::cout << (relative_timestamp & TIMESTAMP_MASK);
-	std::cout << "\n date_offset_ns : \n";
-	std::cout << date_offset_ns;
-	std::cout << "\n date_offset_ns after mask : \n";
-	std::cout << (date_offset_ns & TIMESTAMP_MASK);
-	std::cout << "\n header.timestamp.tv_sec : \n";
-	std::cout << header.timestamp.tv_sec;
-	std::cout << "\n header.timestamp.tv_nsec : \n";
-	std::cout << header.timestamp.tv_nsec;
 	return 0;
 }
 
@@ -245,8 +231,6 @@ void write_can_error(pcapng_exporter::PcapngExporter exporter, CanError* obj, ui
 // CAN_ERROR = 2
 void write(pcapng_exporter::PcapngExporter exporter, CanErrorFrame* obj, uint64_t date_offset_ns) {
 
-	std::cout << "CAN_ERROR = 2";
-	std::cout << date_offset_ns;
 	write_can_error(exporter, obj, date_offset_ns);
 }
 
@@ -799,30 +783,9 @@ uint64_t calculate_startdate(Vector::BLF::File* infile) {
 	if (ret < 0 )
 		return 0;
 	
-	std::cout << "********************* \n tms.tm_year \n";
-	std::cout << tms.tm_year;
-	std::cout << "\n tms.tm_mon \n";
-	std::cout << tms.tm_mon;
-	std::cout << "\n tms.tm_mday \n";
-	std::cout << tms.tm_mday;
-	std::cout << "\n tms.tm_hour \n";
-	std::cout << tms.tm_hour;
-	std::cout << "\n tms.tm_min \n";
-	std::cout << tms.tm_min;
-	std::cout << "\n tms.tm_sec \n";
-	std::cout << tms.tm_sec;
-	std::cout << "\n ret : \n";
-	std::cout << ret;
-
 	ret *= 1000;
-	std::cout << "\n ret 1 : \n";
-	std::cout << ret;
 	ret += startTime.milliseconds;
-	std::cout << "\n ret 2 : \n";
-	std::cout << ret;
 	ret *= 1000 * 1000;
-	std::cout << "\n ret 3 : \n";
-	std::cout << ret;
 
 	return ret;
 }
@@ -895,8 +858,6 @@ int main(int argc, char* argv[]) {
 	pcapng_exporter::PcapngExporter exporter = pcapng_exporter::PcapngExporter(args::get(outarg), maparg.Get());
 
 	uint64_t startDate_ns = calculate_startdate(&infile);
-	std::cout << "main";
-	std::cout << startDate_ns;
 
 	while (infile.good()) {
 		ObjectHeaderBase* ohb = nullptr;
