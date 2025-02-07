@@ -94,6 +94,14 @@ public:
 		uint8_t masked = *(raw + 5) & 0xFD;
 		*(raw + 5) = masked | value << 1;
 	}
+	
+	bool fdf() {
+		return (*(raw + 5) & 0x04) != 0;
+	}
+	void fdf(bool value) {
+		uint8_t masked = *(raw + 5) & 0xFB;
+		*(raw + 5) = masked | value << 2;
+	}
 
 	uint8_t len() {
 		return *(raw + 4);
@@ -249,8 +257,10 @@ void write(pcapng_exporter::PcapngExporter exporter, CanFdMessage* obj, uint64_t
 
 	can.rtr(HAS_FLAG(obj->flags, 7));
 
-	can.esi(HAS_FLAG(obj->canFdFlags, 2));
+	// https://www.tcpdump.org/linktypes/LINKTYPE_CAN_SOCKETCAN.html : set CANFD_FDF flags
+	can.fdf(HAS_FLAG(obj->canFdFlags, 0));
 	can.brs(HAS_FLAG(obj->canFdFlags, 1));
+	can.esi(HAS_FLAG(obj->canFdFlags, 2));
 
 	can.len(obj->validDataBytes);
 	can.data(obj->data.data(), obj->data.size());
@@ -269,8 +279,10 @@ void write(pcapng_exporter::PcapngExporter exporter, CanFdMessage64* obj, uint64
 
 	can.rtr(HAS_FLAG(obj->flags, 4));
 
-	can.esi(HAS_FLAG(obj->flags, 14));
+	// https://www.tcpdump.org/linktypes/LINKTYPE_CAN_SOCKETCAN.html : set CANFD_FDF flags
+	can.fdf(HAS_FLAG(obj->flags, 12));
 	can.brs(HAS_FLAG(obj->flags, 13));
+	can.esi(HAS_FLAG(obj->flags, 14));
 
 	can.len(obj->validDataBytes);
 	can.data(obj->data.data(), obj->data.size());
