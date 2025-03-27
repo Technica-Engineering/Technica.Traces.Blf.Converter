@@ -179,7 +179,9 @@ int write_packet(
 	
 	// Unifying interface name for Ethernet link_type with Wireshark.
 	// For other link_types updates, refer to `add_interface_name` in https://gitlab.com/wireshark/wireshark/-/blob/master/wiretap/blf.c
-	if (link_type == LINKTYPE_ETHERNET) {
+	if (link_type == LINKTYPE_ETHERNET && hw_channel == 0) {
+	    // Needed to take the name as fallback in get_interface_name of mapping.cpp in pcapng_exporter
+		channel_id = 0;
 		name = "ETH-" + std::to_string(oh->channel);
 	}
 	else {
