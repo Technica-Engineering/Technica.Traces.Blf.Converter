@@ -175,7 +175,16 @@ int write_packet(
 	light_packet_interface interface = { 0 };
 	interface.link_type = link_type;
 	auto channel_id = 100000 * hw_channel + oh->channel;
-	std::string name = std::to_string(channel_id);
+	std::string name;
+	
+	// Unifying interface name for Ethernet link_type with Wireshark.
+	// For other link_types updates, refer to `add_interface_name` in https://gitlab.com/wireshark/wireshark/-/blob/master/wiretap/blf.c
+	if (link_type == LINKTYPE_ETHERNET) {
+		name = "ETH-" + std::to_string(oh->channel);
+	}
+	else {
+		name = std::to_string(channel_id);
+	}
 	char name_str[256] = { 0 };
 	memcpy(name_str, name.c_str(), sizeof(char) * std::min((size_t)255, name.length()));
 	interface.name = name_str;
