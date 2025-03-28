@@ -11,6 +11,7 @@
 #include <iomanip>
 #include <iostream>
 #include <locale>
+#include <map>
 
 #include <Vector/BLF.h>
 #include <light_pcapng_ext.h>
@@ -127,6 +128,13 @@ public:
 
 };
 
+std::map <uint16_t, std::string> channels_prefix = {
+	{LINKTYPE_ETHERNET, "ETH-"},
+	{LINKTYPE_CAN, "CAN-"},
+	{LINKTYPE_LIN, "LIN-"},
+	{LINKTYPE_FLEXRAY, "FR-"}
+};
+
 template<class ObjectHeaderGeneric>
 std::uint64_t calculate_ts_res(ObjectHeaderGeneric* oh)
 {
@@ -175,7 +183,18 @@ int write_packet(
 	light_packet_interface interface = { 0 };
 	interface.link_type = link_type;
 	auto channel_id = 100000 * hw_channel + oh->channel;
-	std::string name = std::to_string(channel_id);
+	std::string name;
+	
+	// Unifying interface name for Ethernet link_type with Wireshark.
+	// For other link_types updates, refer to `add_interface_name` in https://gitlab.com/wireshark/wireshark/-/blob/44781615b155d3ae125394454cc317af159c218f/wiretap/blf.c
+	if (exporter.mappings.empty() && hw_channel == 0 && channels_prefix.find(link_type) != channels_prefix.end()) {
+	    // Needed to take the name as fallback in get_interface_name of mapping.cpp in pcapng_exporter
+		channel_id = 0;
+		name = channels_prefix[link_type] + std::to_string(oh->channel);
+	}
+	else {
+		name = std::to_string(channel_id);
+	}
 	char name_str[256] = { 0 };
 	memcpy(name_str, name.c_str(), sizeof(char) * std::min((size_t)255, name.length()));
 	interface.name = name_str;
