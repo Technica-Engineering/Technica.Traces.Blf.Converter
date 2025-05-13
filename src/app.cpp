@@ -362,12 +362,6 @@ template <class TEthernetFrame>
 void write_ethernet_frame(pcapng_exporter::PcapngExporter exporter, TEthernetFrame* obj, uint64_t date_offset_ns) {
 	std::vector<uint8_t> eth(obj->frameData);
 
-	if (HAS_FLAG(obj->flags, 3)) {
-		uint8_t* crcPtr = (uint8_t*)&obj->frameChecksum;
-		std::vector<uint8_t> crc(crcPtr, crcPtr + 4);
-		eth.insert(eth.end(), crc.begin(), crc.end());
-	}
-
 	uint32_t flags = 0;
 	switch (obj->dir)
 	{
