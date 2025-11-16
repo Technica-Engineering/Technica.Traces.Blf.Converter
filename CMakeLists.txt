@@ -14,15 +14,15 @@ endif()
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_LIST_DIR}/cmake")
 include(cmake/pcapng.cmake)
-include(cmake/zlib.cmake)
 include(cmake/pcapng_exporter.cmake)
-include(cmake/args.cmake)
-include(cmake/tinyxml2.cmake)
 
 add_subdirectory(vector_blf)
 
+find_package(tinyxml2 REQUIRED)
+find_package(args REQUIRED)
+
 add_executable(blf_converter "src/app.cpp" "src/channels.cpp")
-target_link_libraries(blf_converter light_pcapng pcapng_exporter args tinyxml2 Vector_BLF)
+target_link_libraries(blf_converter light_pcapng pcapng_exporter taywee::args tinyxml2::tinyxml2 Vector_BLF)
 
 install(TARGETS blf_converter COMPONENT blf_converter)
 
@@ -32,7 +32,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME)
 endif()
 
 if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
-    
+
 
     list(APPEND blf_tests "binlog/test_CanErrorFrame")
     list(APPEND blf_tests "binlog/test_CanErrorFrameExt")
@@ -83,7 +83,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
         string(REPLACE "/" "." param ${blf_test})
         add_test(
             NAME "convert.${param}"
-            COMMAND blf_converter 
+            COMMAND blf_converter
                 "${CMAKE_CURRENT_LIST_DIR}/vector_blf/vector_blf/src/Vector/BLF/tests/unittests/events_from_${blf_test}.blf"
                 "${CMAKE_CURRENT_LIST_DIR}/tests/results/events_from_${blf_test}.pcapng"
         )
@@ -93,7 +93,7 @@ if(CMAKE_PROJECT_NAME STREQUAL PROJECT_NAME AND BUILD_TESTING)
         string(REPLACE "/" "." param ${blf_test})
         add_test(
             NAME "mapping.${param}"
-            COMMAND blf_converter 
+            COMMAND blf_converter
                 "--channel-map" "${CMAKE_CURRENT_LIST_DIR}/tests/mapping.json"
                 "${CMAKE_CURRENT_LIST_DIR}/tests/input/${blf_test}.blf"
                 "${CMAKE_CURRENT_LIST_DIR}/tests/results/mapping/from_${blf_test}.pcapng"

@@ -2,10 +2,6 @@ name: CMake
 
 on: [push, pull_request, fork, workflow_dispatch]
 
-env:
-  # Customize the CMake build type here (Release, Debug, RelWithDebInfo, etc.)
-  BUILD_TYPE: Release
-
 jobs:
   build:
     runs-on: ${{matrix.os}}
@@ -17,30 +13,26 @@ jobs:
           - os: windows-latest
           - os: macos-latest
     steps:
-    - uses: actions/checkout@v5
-    - name: Checkout submodules
-      run: git submodule update --init --recursive
-    - name: Create Build Environment
-      run: cmake -E make_directory build
+      - uses: actions/checkout@v5
+      - name: Checkout submodules
+        run: git submodule update --init --recursive
 
-    - name: Configure CMake
-      working-directory: build
-      run: cmake .. -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+      - name: Build
+        working-directory: build
+        run: |
+          pipx install conan
+          conan profile detect
+          conan build . -s:build_type=Release --build missing
+          cmake --install build/Release --prefix dist --component blf_converter
 
-    - name: Build
-      working-directory: build
-      run: |
-        cmake --build . --config ${{env.BUILD_TYPE}}
-        cmake --install . --prefix ../dist --component blf_converter
+      - name: Test
+        working-directory: build
+        run: |
+          ctest -C Release --output-on-failure
+          git diff --exit-code
 
-    - name: Test
-      working-directory: build
-      run: |
-        ctest -C ${{env.BUILD_TYPE}} --output-on-failure
-        git diff --exit-code
-        
-    - name: 'Upload Artifacts'
-      uses: actions/upload-artifact@v4
-      with:
-        name: ${{matrix.os}} artifacts
-        path: dist
+      - name: "Upload Artifacts"
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{matrix.os}} artifacts
+          path: dist

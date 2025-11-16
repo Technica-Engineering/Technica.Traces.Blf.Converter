@@ -9,9 +9,7 @@ This tool is intented to convert Vector BLF Logging File to PCAPNG.
 ### Build
 
 ```sh
-mkdir build
-cd build
-cmake ..
+conan build .
 ```
 
 ### License
