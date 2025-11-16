@@ -21,12 +21,15 @@ class PkgRecipe(ConanFile):
         self.requires("zstd/1.5.7")
         self.requires("taywee-args/6.4.6")
         self.requires("tinyxml2/11.0.0")
+        self.requires("zlib/1.3.1")
+
 
     def configure(self):
         self.options["libpcap"].shared = False
         self.options["zstd"].shared = False
         self.options["taywee-args"].shared = False
         self.options["tinyxml2"].shared = False
+        self.options["zlib"].shared = False
 
     def generate(self):
         deps = CMakeDeps(self)
