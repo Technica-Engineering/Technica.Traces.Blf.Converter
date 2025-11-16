@@ -18,7 +18,6 @@ jobs:
         run: git submodule update --init --recursive
 
       - name: Build
-        working-directory: build
         run: |
           pipx install conan
           conan profile detect
