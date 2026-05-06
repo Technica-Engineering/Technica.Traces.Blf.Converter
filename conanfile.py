@@ -17,7 +17,7 @@ class PkgRecipe(ConanFile):
         cmake_layout(self, "Ninja")
 
     def requirements(self):
-        self.requires("libpcap/1.10.5")
+        self.requires("libpcap/1.10.6")
         self.requires("zstd/1.5.7")
         self.requires("taywee-args/6.4.6")
         self.requires("tinyxml2/11.0.0")
