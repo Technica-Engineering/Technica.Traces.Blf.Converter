@@ -60,7 +60,7 @@ void configure_db_channel(pcapng_exporter::PcapngExporter* exporter, AppText* ob
 }
 
 
-void configure_xml_channel(pcapng_exporter::PcapngExporter* exporter, tinyxml2::XMLElement* channel) {
+void configure_xml_channel(pcapng_exporter::PcapngExporter* exporter, tinyxml2::XMLElement* channel, size_t& channel_offset) {
 
 	auto channel_type = std::string(channel->Attribute("type") ? channel->Attribute("type") : "");
 	auto channel_id = channel->IntAttribute("number");
@@ -71,7 +71,11 @@ void configure_xml_channel(pcapng_exporter::PcapngExporter* exporter, tinyxml2::
 		mapping.when.chl_id = channel_id;
 		mapping.when.chl_link = bus_name_to_linklayer(channel_type);
 		mapping.change.inf_name = channel_name;
-		exporter->mappings.push_back(mapping);
+		exporter->mappings.insert(
+			exporter->mappings.begin() + channel_offset,
+			mapping
+		);
+		channel_offset++;
 	}
 
 	auto channel_properties = channel->FirstChildElement("channel_properties");
@@ -114,7 +118,7 @@ void configure_xml_channel(pcapng_exporter::PcapngExporter* exporter, tinyxml2::
 }
 
 std::map<int, std::stringstream> xml_channel_mapping;
-void configure_xml_channels(pcapng_exporter::PcapngExporter* exporter, AppText* obj) {
+void configure_xml_channels(pcapng_exporter::PcapngExporter* exporter, AppText* obj, size_t& channel_offset) {
 	auto metadata_id = obj->reservedAppText1 >> 24;
 	auto remaining_len = obj->reservedAppText1 & 0xffffff;
 	auto part_len = obj->text.size();
@@ -139,13 +143,13 @@ void configure_xml_channels(pcapng_exporter::PcapngExporter* exporter, AppText* 
 	}
 	for (auto channel = channels->FirstChildElement("channel"); channel != NULL; channel = channel->NextSiblingElement("channel"))
 	{
-		configure_xml_channel(exporter, channel);
+		configure_xml_channel(exporter, channel, channel_offset);
 	}
 }
 
-void configure_channels(pcapng_exporter::PcapngExporter* exporter, AppText* obj) {
+void configure_channels(pcapng_exporter::PcapngExporter* exporter, AppText* obj, size_t& channel_offset) {
 	if (obj->source == AppText::Source::MetaData) {
-		configure_xml_channels(exporter, obj);
+		configure_xml_channels(exporter, obj, channel_offset);
 	}
 	if (obj->source == AppText::Source::DbChannelInfo) {
 		configure_db_channel(exporter, obj);

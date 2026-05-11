@@ -8,6 +8,6 @@
 #include <Vector/BLF.h>
 #include <pcapng_exporter/pcapng_exporter.hpp>
 
-void configure_channels(pcapng_exporter::PcapngExporter* exporter, Vector::BLF::AppText* obj);
+void configure_channels(pcapng_exporter::PcapngExporter* exporter, Vector::BLF::AppText* obj, size_t& channel_offset);
 
 #endif

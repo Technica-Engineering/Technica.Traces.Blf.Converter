@@ -884,6 +884,8 @@ int main(int argc, char* argv[]) {
 	}
 	pcapng_exporter::PcapngExporter exporter = pcapng_exporter::PcapngExporter(args::get(outarg), maparg.Get());
 
+	// Capture current mapping size to insert new XML mappings at this offset (preserve order)
+	size_t channel_offset = exporter.mappings.size();
 	uint64_t startDate_ns = calculate_startdate(&infile);
 
 	while (infile.good()) {
@@ -984,7 +986,7 @@ int main(int argc, char* argv[]) {
 			break;
 
 		case ObjectType::APP_TEXT:
-			configure_channels(&exporter, reinterpret_cast<AppText*>(ohb));
+			configure_channels(&exporter, reinterpret_cast<AppText*>(ohb), channel_offset);
 			break;
 
 		case ObjectType::LIN_MESSAGE:
