@@ -18,7 +18,7 @@ class PkgRecipe(ConanFile):
 
     def requirements(self):
         self.requires("libpcap/1.10.6")
-        self.requires("zstd/1.5.7")
+        self.requires("zstd/1.6.0")
         self.requires("taywee-args/6.4.6")
         self.requires("tinyxml2/11.0.0")
         self.requires("zlib/1.3.1")
